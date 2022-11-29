@@ -1,5 +1,6 @@
 import random
 from time import sleep
+import json
 
 from helpers.constants import (
     PROPERTY_KEY_COLOR,
@@ -28,6 +29,13 @@ USER_DID = ""  # Copy-paste DID string generated
 
 AGENT_KEY_NAME = ""
 AGENT_SEED = ""  # Copy-paste SEED string generated
+
+
+def receive_input_messages(input_listener, twin_did: str):
+    for message in input_listener:
+        data = json.loads(message.payload.message.data)
+        input_received = data["turn_on"]
+        print(f"The radiator of Twin {twin_did} turns {input_received}")
 
 
 def main():
@@ -117,7 +125,7 @@ def main():
 
     print(f"Created Twin Model {publisher_model_twin_did}")
 
-    ### 4.  CREATE 2 TWINs PUBLISHER FROM MODEL
+    ### 4.  CREATE 2 TWINS PUBLISHER FROM MODEL
     """Let's create a mapping between Sensor ID and Twin DID (eventually we'll need the latter info to share data).
     Let's copy-paste the entire Twin Model upsert info with the right changes:
     - twin_did
