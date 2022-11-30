@@ -1,9 +1,17 @@
-from time import sleep
 import json
 import threading
-from helpers.constants import PROPERTY_KEY_CREATED_BY
+
+from helpers.constants import (
+    PROPERTY_KEY_CREATED_BY,
+    PROPERTY_KEY_TYPE,
+    PROPERTY_VALUE_MODEL,
+)
 from helpers.identity_helper import IdentityHelper
-from iotics.lib.grpc.helpers import create_feed_with_meta, create_property, create_value
+from iotics.lib.grpc.helpers import (
+    create_input_with_meta,
+    create_property,
+    create_value,
+)
 from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 
 RESOLVER_URL = ""  # IOTICSpace_URL/index.json

@@ -16,7 +16,12 @@ from helpers.constants import (
     UNIT_DEGREE_CELSIUS,
 )
 from helpers.identity_helper import IdentityHelper
-from iotics.lib.grpc.helpers import create_feed_with_meta, create_property, create_value
+from iotics.lib.grpc.helpers import (
+    create_feed_with_meta,
+    create_location,
+    create_property,
+    create_value,
+)
 from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 
 RESOLVER_URL = ""  # IOTICSpace_URL/index.json
