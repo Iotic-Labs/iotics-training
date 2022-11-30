@@ -1,6 +1,5 @@
 import random
 from time import sleep
-import json
 
 from helpers.constants import (
     PROPERTY_KEY_COLOR,
@@ -17,7 +16,12 @@ from helpers.constants import (
     UNIT_DEGREE_CELSIUS,
 )
 from helpers.identity_helper import IdentityHelper
-from iotics.lib.grpc.helpers import create_feed_with_meta, create_property, create_value
+from iotics.lib.grpc.helpers import (
+    create_feed_with_meta,
+    create_location,
+    create_property,
+    create_value,
+)
 from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 
 RESOLVER_URL = ""  # IOTICSpace_URL/index.json
@@ -29,13 +33,6 @@ USER_DID = ""  # Copy-paste DID string generated
 
 AGENT_KEY_NAME = ""
 AGENT_SEED = ""  # Copy-paste SEED string generated
-
-
-def receive_input_messages(input_listener, twin_did: str):
-    for message in input_listener:
-        data = json.loads(message.payload.message.data)
-        input_received = data["turn_on"]
-        print(f"The radiator of Twin {twin_did} turns {input_received}")
 
 
 def main():
@@ -212,6 +209,7 @@ def main():
                     ],
                 )
             ],
+            location=create_location(lat=51.864, lon=-0.412),
         )
 
         print(f"Created Twin {publisher_twin_did}")
@@ -234,7 +232,6 @@ def main():
                 f"Shared temperature {rand_temp} from Twin {room_number_to_twin_did[room_number]}"
             )
 
-        print("---")
         sleep(5)
 
     ### 6.  DELETE TWINS
