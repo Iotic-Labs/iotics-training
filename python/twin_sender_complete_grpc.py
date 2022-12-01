@@ -1,6 +1,7 @@
 from helpers.constants import PROPERTY_KEY_LABEL
 from helpers.identity_helper import IdentityHelper
-from helpers.iotics_via_rest import IOTICSviaREST
+from iotics.lib.grpc.helpers import create_property
+from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 
 RESOLVER_URL = ""  # IOTICSpace_URL/index.json
 HOST = ""  # IOTICSpace URL
@@ -15,7 +16,9 @@ AGENT_SEED = ""  # Copy-paste SEED string generated
 
 def main():
     ### 1. INSTANTIATE AN IDENTITY HELPER
-    identity_helper = IdentityHelper(resolver_url=RESOLVER_URL, host_url=HOST)
+    identity_helper = IdentityHelper(
+        resolver_url=RESOLVER_URL, host_url=HOST, grpc=True
+    )
 
     ### 2. CREATE AGENT IDENTITY, THEN DELEGATE
     """The creation of the User is only used to retrieve the User Identity info.
@@ -31,19 +34,15 @@ def main():
         user_identity=user_identity, agent_identity=agent_identity
     )
 
-    ### 4. GENERATE NEW TOKEN
+    ### 3. GENERATE NEW TOKEN
     """The default (according to the IdentityHelper class) duration of the Token
     should be enough for this exercise."""
     identity_helper.refresh_token(user_did=USER_DID, agent_identity=agent_identity)
 
-    ### 5. INSTANTIATE IOTICSviaREST AND SETUP
-    """The IOTICSviaREST's constructor takes as input a 'stomp_url' parameter
-    which we don't need for the Twin Sender (there's no operation in this exercise
-    that requires a Stomp Client)."""
-    iotics = IOTICSviaREST(host_url=HOST)
-    iotics.setup(token=identity_helper.get_token())
+    ### 4. INSTANTIATE IOTICSviaREST AND SETUP
+    iotics_api = IOTICSviagRPC(auth=identity_helper)
 
-    ### 6. CREATE TWIN SENDER IDENTITY WITH CONTROL DELEGATION
+    ### 5. CREATE TWIN SENDER IDENTITY WITH CONTROL DELEGATION
     """Let's use the HighLevel Identity library to create the Twin Identity
     and delegate the Agent in a single step.
     Same as step 2, multiple creations of the Twin Identity won't (re-)create the Identity.
@@ -58,47 +57,54 @@ def main():
     )
     twin_sender_did = twin_sender_identity.did
 
-    ### 7. CREATE TWIN SENDER'S BASIC STRUCTURE, THEN DESCRIBE TWIN
+    ### 6. CREATE TWIN SENDER'S BASIC STRUCTURE, THEN DESCRIBE TWIN
     """For the sake of the training, the Twin Sender only needs the Basic Structure
     (no Properties/Feeds/Inputs) to send Input messages."""
-    iotics.create_twin(twin_did=twin_sender_did)
-    twin_description = iotics.describe_twin(twin_did=twin_sender_did)
+    iotics_api.create_twin(twin_did=twin_sender_did)
+    twin_description = iotics_api.describe_twin(twin_did=twin_sender_did)
     print(twin_description)
 
-    ### 8. SEARCH FOR TWIN RECEIVER BY LABEL
+    ### 7. SEARCH FOR TWIN RECEIVER BY LABEL
     """We need to Search in the entire Network of Spaces (scope=GLOBAL)
     rather than locally (scope=LOCAL) in order to find Twins in a remote Host.
     The only search parameter we want to use for the sake of this exercise is the Twin's Label
     which must match exactly the Label of the Twin we want to find (and then take all the info we need)."""
-    twins_found = iotics.search_twins(
-        scope="GLOBAL",
+    twins_found_list = []
+    payload = iotics_api.get_search_payload(
         properties=[
-            {
-                "key": PROPERTY_KEY_LABEL,
-                "langLiteralValue": {"value": "Twin Receiver - LP", "lang": "en"},
-            }
+            create_property(
+                key=PROPERTY_KEY_LABEL, value="Twin Receiver - LP", language="en"
+            )
         ],
+        response_type="FULL",
     )
-    print(twins_found)
+    for response in iotics_api.search_iter(
+        client_app_id="twin_sender", payload=payload, scope="GLOBAL"
+    ):
+        twins = response.payload.twins
+        twins_found_list.extend(twins)
+
+    print(twins_found_list)
+
     """The search result will return an empty list of Twins found.
     In fact the Twin we want to search is not 'findable' from other Hosts
     unless its hostMetadataAllowList is set either to All Host or
     the Host ID from which we are searching for."""
 
-    ### 9. SEND INPUT MESSAGES
+    ### 8. SEND INPUT MESSAGES
     """Once the Twin Receiver has been found,
     we can take all the info needed to send the Input message."""
-    iotics.send_input_message(
-        twin_sender_did=twin_sender_did,
-        twin_receiver_did="",
-        twin_receiver_host_id="",
-        input_id="on_off_switch",
-        message={"light_on": False},
+    iotics_api.send_input_message(
+        sender_twin_id=twin_sender_did,
+        receiver_twin_id="",
+        remote_host_id="",
+        input_id="",
+        message={"light_on": True},
     )
 
-    ### 13. DELETE TWIN SENDER
+    ### 9. DELETE TWIN SENDER
     """Let's delete the Twin to conclude the exercise"""
-    iotics.delete_twin(twin_did=twin_sender_did)
+    iotics_api.delete_twin(twin_did=twin_sender_did)
 
 
 if __name__ == "__main__":

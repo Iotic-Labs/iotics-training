@@ -176,13 +176,13 @@ def main():
             ).start()
             events_list.append(event)
 
-    ### 6.  GET INPUT DATA
+    ### 7.  GET INPUT DATA
     input_listener = iotics_api.receive_input_messages(
         twin_id=radiator_twin_did, input_id=radiator_input_id
     )
     threading.Thread(target=get_input_data, args=(input_listener,)).start()
 
-    ### 7.  THERMOSTAT LOGIC
+    ### 8.  THERMOSTAT LOGIC
     status_on = False
     while True:
         if status_on:
@@ -204,7 +204,7 @@ def main():
                 )
                 status_on = True
 
-    ### 7.  BONUS
+    ### 8.  BONUS
     twins_found_list = []
     event_bonus = threading.Event()
     payload = iotics_api.get_search_payload(
@@ -266,7 +266,7 @@ def main():
                 )
                 status_on = True
 
-    ### 8.  DELETE TWIN
+    ### 9.  DELETE TWIN
     """Let's delete the Twins to conclude the exercise"""
     iotics_api.delete_twin(twin_did=thermostat_twin_did)
     iotics_api.delete_twin(twin_did=radiator_twin_did)
