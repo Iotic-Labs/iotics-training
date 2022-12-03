@@ -127,54 +127,47 @@ def main():
     1. The Twin DID
     2. The Host ID of the Twin Pulbisher (if remote)
     3. The Feed ID.
-    We don't want to Follow the Twin Model's Feed as it won't share any data.
     The 'fetch_interests' method will return a generator that waits until a new message is received.
     We can create a Thread for each Twin Publisher that takes as input the 'feed_listener' generator
     and set/unset a flag according to the message shared by the related Twin Publisher."""
     events_list = []
     for twin in twins_found_list:
-        if (
-            create_property(
-                key=PROPERTY_KEY_TYPE, value=PROPERTY_VALUE_MODEL, is_uri=True
-            )
-            not in twin.properties
-        ):
-            # print("Host ID:", host_id)
-            # print("DID:", twin.twinId.id)
-            # print("Location:", twin.location)
-            # print("Properties:", twin.properties)
-            # print("Feed:", twin.feeds)
-            # print("Inputs:", twin.inputs)
-            # print("---")
-            feed_of_interest = twin.feeds[0]
-            host_id = feed_of_interest.feedId.hostId
-            twin_id = feed_of_interest.feedId.twinId
-            feed_id = feed_of_interest.feedId.id
+        # print("Host ID:", host_id)
+        # print("DID:", twin.twinId.id)
+        # print("Location:", twin.location)
+        # print("Properties:", twin.properties)
+        # print("Feed:", twin.feeds)
+        # print("Inputs:", twin.inputs)
+        # print("---")
+        feed_of_interest = twin.feeds[0]
+        host_id = feed_of_interest.feedId.hostId
+        twin_id = feed_of_interest.feedId.twinId
+        feed_id = feed_of_interest.feedId.id
 
-            feed_description = iotics_api.describe_feed(
-                twin_did=twin_id, feed_id=feed_id, remote_host_id=host_id
-            )
-            feeds_value_label = feed_description.payload.result.values[0].label
+        feed_description = iotics_api.describe_feed(
+            twin_did=twin_id, feed_id=feed_id, remote_host_id=host_id
+        )
+        feeds_value_label = feed_description.payload.result.values[0].label
 
-            feed_listener = iotics_api.fetch_interests(
-                follower_twin_did=thermostat_twin_did,
-                followed_twin_did=twin_id,
-                followed_feed_id=feed_id,
-                remote_host_id=host_id,
-            )
+        feed_listener = iotics_api.fetch_interests(
+            follower_twin_did=thermostat_twin_did,
+            followed_twin_did=twin_id,
+            followed_feed_id=feed_id,
+            remote_host_id=host_id,
+        )
 
-            event = threading.Event()
+        event = threading.Event()
 
-            threading.Thread(
-                target=get_feed_data,
-                args=(
-                    feed_listener,
-                    twin_id,
-                    feeds_value_label,
-                    event,
-                ),
-            ).start()
-            events_list.append(event)
+        threading.Thread(
+            target=get_feed_data,
+            args=(
+                feed_listener,
+                twin_id,
+                feeds_value_label,
+                event,
+            ),
+        ).start()
+        events_list.append(event)
 
     ### 7.  GET INPUT DATA
     input_listener = iotics_api.receive_input_messages(

@@ -39,7 +39,7 @@ def main():
     should be enough for this exercise."""
     identity_helper.refresh_token(user_did=USER_DID, agent_identity=agent_identity)
 
-    ### 4. INSTANTIATE IOTICSviaREST AND SETUP
+    ### 4. INSTANTIATE IOTICSviagRPC AND SETUP
     iotics_api = IOTICSviagRPC(auth=identity_helper)
 
     ### 5. CREATE TWIN SENDER IDENTITY WITH CONTROL DELEGATION

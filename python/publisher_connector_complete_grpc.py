@@ -221,7 +221,7 @@ def main():
     1. generate a random number (temperature) for each Sensor,
     2. share the data from the specific Twin."""
     while True:
-        rand_temp_list = random.sample(range(0, 40), len(room_number_to_twin_did))
+        rand_temp_list = random.sample(range(10, 30), len(room_number_to_twin_did))
         for room_number, rand_temp in enumerate(rand_temp_list):
             iotics_api.share_feed_data(
                 twin_did=room_number_to_twin_did[room_number],
