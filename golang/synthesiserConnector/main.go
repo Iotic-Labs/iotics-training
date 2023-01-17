@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	helpers "iotics-training/helpers"
+	"iotics-training/pkg/helpers"
 	"log"
 	"net/url"
 	"time"
@@ -24,7 +24,7 @@ const (
 )
 
 /*** BONUS ***/
-// func getInputMessages(inputListener ioticsApi.InputAPI_ReceiveInputMessagesClient, inputValueLabel string, ch chan bool) {
+// func getInputMessages(inputListener ioticsApi.InputAPI_ReceiveInputMessagesClient, inputValueLabel string, ch <-chan bool) {
 // 	log.Print("Waiting for Input Messages...")
 // 	mappedData := make(map[string]interface{})
 
@@ -44,15 +44,11 @@ const (
 // 		presence := bool(mappedData[inputValueLabel].(bool))
 // 		log.Printf("Received Input message: %t", presence)
 
-// 		if presence {
-// 			ch <- true
-// 		} else {
-// 			ch <- false
-// 		}
+// 		ch <- presence
 // 	}
 // }
 
-func getFeedData(feedListener ioticsApi.InterestAPI_FetchInterestsClient, twinId string, feedValueLabel string, ch chan bool) {
+func getFeedData(feedListener ioticsApi.InterestAPI_FetchInterestsClient, twinId string, feedValueLabel string, ch chan<- bool) {
 	log.Printf("Following Twin %s", twinId)
 	mappedData := make(map[string]interface{})
 
@@ -117,16 +113,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not Create Twin: %v", err)
 	}
-	log.Printf("Created Twin %s", twinThermostatIdentity.Did())
+	log.Printf("Twin created DID: %s", twinThermostatIdentity.Did())
 
-	/*** SEARCH FOR TWINS TEMPERATURE ***/
+	/*** SEARCH FOR 2 PUBLISHER TWINS ***/
 	/* We need to find the 2 Twins Publisher. To do that we need to define:
-	   1. One or more searching criteria
+	   1. One or more search criteria
 	   2. The type of the response
 	   3. The scope of the Search. */
 	headersSearch := ioticsApi.Headers{
 		ClientAppId:    "Iotics Search",
-		TransactionRef: []string{"Search"},
+		TransactionRef: []string{"Search: Publisher Twins"},
 		RequestTimeout: timestamppb.New(time.Now().Add(time.Second * 3)),
 	}
 
@@ -169,10 +165,10 @@ func main() {
 	/*** FOLLOW PUBLISHERS' FEED DATA ***/
 	/* In order to follow a Twin's Feed we need to know:
 	   1. The Twin DID
-	   2. The Host ID of the Twin Pulbisher (if remote)
+	   2. The Host ID of the Twin Publisher (if remote)
 	   3. The Feed ID.
-	   However, in order to send Input message we need to know the value of the Input's Label
-	   which can be retrieved only via the DescribeFeed operation. */
+	   However, in order to parse Feed's data we need to know the value of the Feed's Label
+	   which can be retrieved via the DescribeFeed operation. */
 	ch := make(chan bool, len(twinPubList)+1) // BONUS: len(twinPubList) + 1
 
 	for _, twin := range twinPubList {
@@ -183,11 +179,7 @@ func main() {
 			&ioticsApi.DescribeFeedRequest{
 				Headers: &apiContext.Headers,
 				Args: &ioticsApi.DescribeFeedRequest_Arguments{
-					FeedId: &ioticsApi.FeedID{
-						Id:     feedOfInterest.FeedId.Id,
-						TwinId: feedOfInterest.FeedId.TwinId,
-						HostId: feedOfInterest.FeedId.HostId,
-					},
+					FeedId: feedOfInterest.FeedId,
 				},
 			},
 		)
@@ -204,11 +196,7 @@ func main() {
 				Args: &ioticsApi.FetchInterestRequest_Arguments{
 					Interest: &ioticsApi.Interest{
 						FollowerTwinId: &ioticsApi.TwinID{Id: twinThermostatIdentity.Did()},
-						FollowedFeedId: &ioticsApi.FeedID{
-							Id:     feedOfInterest.FeedId.Id,
-							TwinId: feedOfInterest.FeedId.TwinId,
-							HostId: feedOfInterest.FeedId.HostId,
-						},
+						FollowedFeedId: feedOfInterest.FeedId,
 					},
 				},
 			},
@@ -223,7 +211,7 @@ func main() {
 	/*** SEARCH FOR TWIN RADIATOR ***/
 	headersSearch = ioticsApi.Headers{
 		ClientAppId:    "Iotics Search",
-		TransactionRef: []string{"Search"},
+		TransactionRef: []string{"Search: Twin Radiator"},
 		RequestTimeout: timestamppb.New(time.Now().Add(time.Second * 3)),
 	}
 
@@ -340,10 +328,7 @@ func main() {
 					Args: &ioticsApi.SendInputMessageRequest_Arguments{
 						Interest: &ioticsApi.InputInterest{
 							SenderTwinId: &ioticsApi.TwinID{Id: twinThermostatIdentity.Did()},
-							DestInputId: &ioticsApi.InputID{
-								Id:     twinRadiatorList[0].GetInputs()[0].InputId.Id,
-								TwinId: twinRadiatorList[0].GetInputs()[0].InputId.TwinId,
-							},
+							DestInputId:  twinRadiatorList[0].GetInputs()[0].InputId,
 						},
 					},
 					Payload: &ioticsApi.SendInputMessageRequest_Payload{
@@ -371,10 +356,7 @@ func main() {
 					Args: &ioticsApi.SendInputMessageRequest_Arguments{
 						Interest: &ioticsApi.InputInterest{
 							SenderTwinId: &ioticsApi.TwinID{Id: twinThermostatIdentity.Did()},
-							DestInputId: &ioticsApi.InputID{
-								Id:     twinRadiatorList[0].GetInputs()[0].InputId.Id,
-								TwinId: twinRadiatorList[0].GetInputs()[0].InputId.TwinId,
-							},
+							DestInputId:  twinRadiatorList[0].GetInputs()[0].InputId,
 						},
 					},
 					Payload: &ioticsApi.SendInputMessageRequest_Payload{

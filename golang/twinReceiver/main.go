@@ -1,7 +1,7 @@
 package main
 
 import (
-	helpers "iotics-training/helpers"
+	"iotics-training/pkg/helpers"
 	"log"
 	"net/url"
 
@@ -87,7 +87,7 @@ func main() {
 						Values: []*ioticsApi.Value{
 							{
 								Label:    "turn_on",
-								Comment:  "Whether the radiator is ON/OFF",
+								Comment:  "ON/OFF switch for the Radiator",
 								DataType: "boolean",
 							},
 						},
@@ -99,7 +99,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not Upsert Twin: %v", err)
 	}
-	log.Printf("Created Twin %s", twinRadiatorIdentity.Did())
+	log.Printf("Twin created DID: %s", twinRadiatorIdentity.Did())
 
 	twinDescription, err := apiContext.TwinAPI.DescribeTwin(
 		apiContext.CtxWithMeta,

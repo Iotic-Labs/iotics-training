@@ -8,9 +8,9 @@ import (
 )
 
 func main() {
-	seed, seedErr := identityApi.CreateDefaultSeed()
-	if seedErr != nil {
-		log.Fatalf("Could not create Seed: %v", seedErr)
+	seed, err := identityApi.CreateDefaultSeed()
+	if err != nil {
+		log.Fatalf("Could not create Seed: %v", err)
 	}
 	log.Printf("Seed: %s", hex.EncodeToString(seed))
 }

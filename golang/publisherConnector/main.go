@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	helpers "iotics-training/helpers"
+	"iotics-training/pkg/helpers"
 	"log"
 	"math/rand"
 	"net/url"
@@ -159,9 +159,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not Upsert Twin: %v", err)
 	}
-	log.Printf("Created Twin Model %s", twinTempModelIdentity.Did())
+	log.Printf("Twin Model DID: %s", twinTempModelIdentity.Did())
 
-	/*** CREATE 2 TWIN TEMPERATURE FROM THAT MODEL ***/
+	/*** CREATE 2 TWINS OF TEMPERATURE SENSOR FROM THAT MODEL ***/
 	/* Let's copy-paste the entire Twin Model upsert info with the right changes:
 	   - twin_did
 	   - 1st Twin Property
@@ -171,8 +171,7 @@ func main() {
 	   - hostAllowList.
 	   The Twins' setup phase ends here. */
 
-	// The following is mapping between Sensor ID and Twin DID (eventually we'll need the latter info to share data)
-	roomNumberToTwinId := make(map[int]string)
+	var twinIds []string
 
 	for roomNumber := 1; roomNumber <= 2; roomNumber++ {
 		twinTemperatureIdentity := helpers.CreateTwinWithControlDelegation(
@@ -314,16 +313,16 @@ func main() {
 		if err != nil {
 			log.Fatalf("Could not Upsert Twin: %v", err)
 		}
-		log.Printf("Created Twin %s", twinTemperatureIdentity.Did())
+		log.Printf("Twin created DID: %s", twinTemperatureIdentity.Did())
 
 		// Update mapping
-		roomNumberToTwinId[roomNumber] = twinTemperatureIdentity.Did()
+		twinIds = append(twinIds, twinTemperatureIdentity.Did())
 	}
 
 	/*** SHARE DATA ***/
 	/* For each Twin we want to generate a random tenmperature and share the data */
 	for {
-		for roomNumber := range roomNumberToTwinId {
+		for _, twinId := range twinIds {
 			randTemp := 10 + rand.Intn(16)
 			messageToShare := fmt.Sprintf(`{"reading": %d}`, randTemp)
 			dataToShare := []byte(messageToShare)
@@ -335,7 +334,7 @@ func main() {
 					Args: &ioticsApi.ShareFeedDataRequest_Arguments{
 						FeedId: &ioticsApi.FeedID{
 							Id:     "temperature",
-							TwinId: roomNumberToTwinId[roomNumber],
+							TwinId: twinId,
 						},
 					},
 					Payload: &ioticsApi.ShareFeedDataRequest_Payload{
@@ -346,7 +345,7 @@ func main() {
 				},
 			)
 
-			log.Printf("Shared %s from Twin %s", messageToShare, roomNumberToTwinId[roomNumber])
+			log.Printf("Shared %s from Twin %s", messageToShare, twinId)
 		}
 
 		time.Sleep(5 * time.Second)
