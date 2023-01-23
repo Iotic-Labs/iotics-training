@@ -1,9 +1,11 @@
 # IOTICS PRECONDITIONS
 
-In order to guarantee the full streaming functionality of IOTICS, we would need:
-- **HTTP2** to be enabled with your environment;
-- web traffic to be allowed on ports **10001** (gRPC) and **11000** (gRPC-Web).
-- We would also need to ensure the domains `.iotics.space` and `did.prd.iotics.com` will not be blocked
+In order to guarantee the functionality of IOTICS, we would need to ensure the following services, ports and protocols are supported. This will need to be verified in corporate environments where firewalls and Internet proxies may affect successful operations:
+
+- REST | HTTP 1.1 | https://ganymede.iotics.space:443/qapi
+- STOMP over Websocket | HTTP 1.1 | wss://ganymede.iotics.space/ws
+- gRPC | HTTP 2 | https://ganymede.iotics.space:10001
+- gRPC Web | HTTP 2 / HTTP 1.1 | https://ganymede.iotics.space:11000
 
 To make these checks easy for you we have prepared a script that performs automatically all of the above tests.
 
@@ -12,11 +14,12 @@ To make these checks easy for you we have prepared a script that performs automa
 Execute the `iotics_test.sh` in this folder. If all the tests are successful you will see the following return values:
 
 ```bash
-https ---> OK
-grpc-web ---> OK
-gRPC ---> OK
-Resolver ---> OK
-HTTP2 ---> OK
+IOTICSpace Domain ---> OK
+Resolver Domain ---> OK
+gRPC Port ---> OK
+HTTP 2 with TLS>=v1.2 Enabled ---> OK
+gRPC-Web Request Test ---> OK
+Websocket Connection ---> OK
 ```
 
 If any of the tests fail (return value = `ERROR`) reach out to us as soon as possible.
