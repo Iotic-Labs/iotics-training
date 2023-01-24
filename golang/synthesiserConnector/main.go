@@ -276,7 +276,7 @@ func main() {
 	// 					Values: []*ioticsApi.Value{
 	// 						{
 	// 							Label:    "presence_detected",
-	// 							Comment:  "Whether the sensor detected a presence",
+	// 							Comment:  "Inform thermostat of sensor state",
 	// 							DataType: "boolean",
 	// 						},
 	// 					},

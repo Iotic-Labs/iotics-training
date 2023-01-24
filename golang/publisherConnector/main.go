@@ -46,7 +46,7 @@ func main() {
 	   We want to use the Upsert operation as it combines multiple operations into a single one */
 	twinTempModelIdentity := helpers.CreateTwinWithControlDelegation(resolverClient, AGENT_SEED, "TempModel", agentIdentity)
 
-	_, err = apiContext.TwinAPI.UpsertTwin(
+	response, err := apiContext.TwinAPI.UpsertTwin(
 		apiContext.CtxWithMeta,
 		&ioticsApi.UpsertTwinRequest{
 			Headers: &apiContext.Headers,
@@ -159,6 +159,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not Upsert Twin: %v", err)
 	}
+	log.Printf("Upsert Twin response: %s", response.Payload)
 	log.Printf("Twin Model DID: %s", twinTempModelIdentity.Did())
 
 	/*** CREATE 2 TWINS OF TEMPERATURE SENSOR FROM THAT MODEL ***/
