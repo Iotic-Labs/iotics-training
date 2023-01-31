@@ -1,25 +1,33 @@
 #!/bin/bash
 
-SPACE_NAME="ganymede"
-IOTICSPACE_DOMAIN="https://$SPACE_NAME.iotics.space"
-RESOLVER_DOMAIN="https://did.prd.iotics.com"
+CURRENT_DIR=$(pwd)
+SPACE_NAME=${1:-ganymede}
+HTTPS_PREFIX="https://"
+IOTICSPACE_DOMAIN="$HTTPS_PREFIX$SPACE_NAME.iotics.space"
+INDEX=$(curl -sL $IOTICSPACE_DOMAIN/index.json | tr , "\n" | grep ":")
+GRPC_WEB=$(echo -e "$INDEX" | grep "grpc-web" | cut -d"\"" -f 4)
+GRPC=$(echo -e "$INDEX" | grep "grpc" | cut -d"\"" -f 4)
+RESOLVER_DOMAIN=$(echo -e "$INDEX" | grep "resolver" | cut -d"\"" -f 4)
 HOST_ID="did:iotics:iotQYDB3DVsP1GpReFudw1NfqbVzni8czZKt"
-WEBSOCKET_URL="wss://$SPACE_NAME.iotics.space/ws"
-GRPC_WEB_PORT="11000"
-GRPC_PORT="10001"
-HTTPS_PORT="443"
+RESULTS_DIR="results.tar.gz"
 
-function_test_curl_request() {
-    if [[ $(curl -v -I $1 2>&1 | grep -c "Connected") -eq 1 ]]; then
-        echo $2 "---> OK"
+function_test() {
+    local curl_cmd="curl -vs $1"
+    echo "$curl_cmd" >$2
+    local test=$($curl_cmd 2>>$2)
+    if grep -q "Connected" $2; then
+        echo $3 "---> PASSED"
     else
-        echo $2 "---> ERROR"
+        echo $3 "---> NOT PASSED"
     fi
 }
 
-function_test_curl_request "$IOTICSPACE_DOMAIN:$HTTPS_PORT" "IOTICSpace Domain"
-function_test_curl_request "$RESOLVER_DOMAIN:$HTTPS_PORT/1.0/discover/$HOST_ID" "Resolver Domain"
-function_test_curl_request "$IOTICSPACE_DOMAIN:$GRPC_PORT" "gRPC Port"
-function_test_curl_request "--http2-prior-knowledge --tlsv1.2 $IOTICSPACE_DOMAIN" "HTTP 2 with TLS>=v1.2 Enabled"
-function_test_curl_request "-X POST $IOTICSPACE_DOMAIN:$GRPC_WEB_PORT/iotics.api.TwinAPI/ListAllTwins" "gRPC-Web Request Test"
-function_test_curl_request "-H \"Connection: Upgrade\" -H \"Upgrade: websocket\" -H \"Host: ${IOTICSPACE_DOMAIN#*//}\" -H \"Origin: $IOTICSPACE_DOMAIN\" -H \"Sec-WebSocket-Key: ub7NHQCl1doMcqj6TRfsJw==\" -H \"Sec-WebSocket-Version: 13\" $IOTICSPACE_DOMAIN:$HTTPS_PORT" "Websocket Connection"
+function_test "$IOTICSPACE_DOMAIN" "ioticspace_domain.txt" "IOTICSpace domain reacheable"
+function_test "$RESOLVER_DOMAIN/1.0/discover/$HOST_ID" "resolver_domain.txt" "Resolver domain reacheable"
+function_test "--http2-prior-knowledge $IOTICSPACE_DOMAIN" "http2.txt" "HTTP2 enabled"
+function_test "--tlsv1.2 $IOTICSPACE_DOMAIN" "tls.txt" "TLS>=v1.2 enabled"
+function_test "$HTTPS_PREFIX$GRPC" "grpc_port.txt" "gRPC port unblocked"
+function_test "-X POST $HTTPS_PREFIX$GRPC_WEB/iotics.api.TwinAPI/GetHostId" "grpc_web.txt" "gRPC-Web request test"
+function_test "--http1.1 $IOTICSPACE_DOMAIN -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Host: ${IOTICSPACE_DOMAIN#*//}' -H 'Origin: $IOTICSPACE_DOMAIN' -H 'Sec-WebSocket-Key: ub7NHQCl1doMcqj6TRfsJw==' -H 'Sec-WebSocket-Version: 13'" "websocket.txt" "Websocket Connection"
+tar -zcf $RESULTS_DIR *.txt
+rm $CURRENT_DIR/*.txt
