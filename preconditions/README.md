@@ -6,7 +6,7 @@ In order to guarantee the functionality of IOTICS, we would need to ensure the f
 - Websocket Connection | HTTP 1.1
 - gRPC | HTTP 2
 - gRPC Web | HTTP 2 / HTTP 1.1
-- TLS >= v1.2
+- TLS >= v1.3
 
 To make these checks easy for you we have prepared a script that performs automatically all of the above tests.
 
@@ -18,8 +18,7 @@ Execute the `iotics_test.sh` in this folder. If all the tests are successful you
 IOTICSpace domain reacheable ---> PASSED
 Resolver domain reacheable ---> PASSED
 HTTP2 enabled ---> PASSED
-TLS>=v1.2 enabled ---> PASSED
-gRPC port unblocked ---> PASSED
+TLS>=v1.3 enabled ---> PASSED
 gRPC-Web request test ---> PASSED
 Websocket Connection ---> PASSED
 ```
