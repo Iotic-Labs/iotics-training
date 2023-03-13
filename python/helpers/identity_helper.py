@@ -9,21 +9,15 @@ from iotics.lib.identity.api.regular_api import (
 
 
 class IdentityHelper(AuthInterface):
-    def __init__(self, resolver_url: str, host_url: str, grpc: bool = False):
+    def __init__(self, resolver_url: str, host_url: str):
         self._high_level_identity_api = get_rest_high_level_identity_api(
             resolver_url=resolver_url
         )
         self._identity_api = get_rest_identity_api(resolver_url=resolver_url)
         self._host_url = host_url
-        self._grpc = grpc
         self._token = None
 
     def get_host(self) -> str:
-        if self._grpc:
-            split_url = self._host_url.partition("://")
-            space = split_url[2] or split_url[0]
-            self._host_url = space + ":10001"
-
         return self._host_url
 
     def get_token(self) -> str:
