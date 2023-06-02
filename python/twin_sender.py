@@ -1,8 +1,3 @@
-from helpers.constants import PROPERTY_KEY_LABEL
-from helpers.identity_helper import IdentityHelper
-from helpers.iotics_via_rest import IOTICSviaREST
-
-RESOLVER_URL = ""  # IOTICSpace_URL/index.json
 HOST = ""  # IOTICSpace URL
 
 USER_KEY_NAME = ""

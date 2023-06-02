@@ -1,15 +1,3 @@
-from time import sleep
-
-from helpers.constants import (
-    PROPERTY_KEY_HOST_ALLOW_LIST,
-    PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
-    PROPERTY_KEY_LABEL,
-    PROPERTY_VALUE_ALLOW_ALL_HOSTS,
-)
-from helpers.identity_helper import IdentityHelper
-from helpers.iotics_via_rest import IOTICSviaREST
-
-RESOLVER_URL = ""  # IOTICSpace_URL/index.json
 HOST = ""  # IOTICSpace URL
 STOMP_ENDPOINT = ""  # HOST/index.json
 
