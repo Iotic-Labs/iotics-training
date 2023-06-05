@@ -1,8 +1,15 @@
 import base64
-from datetime import datetime, timezone, timedelta
 import json
+from datetime import datetime, timedelta, timezone
+from random import randint
+from time import sleep
+
 from helpers.constants import (
+    MOTION_SENSOR_ONTOLOGY,
+    PROPERTY_KEY_COMMENT,
     PROPERTY_KEY_DEFINES,
+    PROPERTY_KEY_LABEL,
+    PROPERTY_KEY_TYPE,
     RADIATOR_ONTOLOGY,
     SEARCH_TWINS,
     SEND_INPUT_MESSAGE,
@@ -56,20 +63,32 @@ def main():
     ##### TWIN SETUP #####
     ### 4. CREATE TWIN IDENTITY WITH CONTROL DELEGATION
     twin_motion_sensor_identity = identity_api.create_twin_with_control_delegation(
-        # The Twin Key Name's concept is the same as Agent and User Key Name
         twin_key_name="TwinMotionSensor",
-        # It is a best-practice to re-use the "AGENT_SEED" as a Twin seed.
         twin_seed=bytes.fromhex(AGENT_SEED),
         agent_registered_identity=agent_identity,
     )
 
     ### 5. DEFINE TWIN'S STRUCTURE
+    properties = [
+        {
+            "key": PROPERTY_KEY_LABEL,
+            "langLiteralValue": {"value": "Twin Motion Sensor - LP", "lang": "en"},
+        },
+        {
+            "key": PROPERTY_KEY_COMMENT,
+            "langLiteralValue": {"value": "This is a Twin Motion Sensor", "lang": "en"},
+        },
+        {
+            "key": PROPERTY_KEY_TYPE,
+            "uriValue": {"value": MOTION_SENSOR_ONTOLOGY},
+        },
+    ]
+
     ### 6. CREATE DIGITAL TWIN RADIATOR
-    """We can now use the Upsert Twin operation in order to:
-    1. Create the Digital Twin;
-    2. Add Twin's Metadata;
-    3. Add a Input object (Input's Metadata + Input's Value) to this Twin."""
-    upsert_twin_payload = {"twinId": {"id": twin_motion_sensor_identity.did}}
+    upsert_twin_payload = {
+        "twinId": {"id": twin_motion_sensor_identity.did},
+        "properties": [properties],
+    }
     make_api_call(
         method=UPSERT_TWIN.method,
         endpoint=UPSERT_TWIN.url.format(host=HOST_URL),
@@ -79,11 +98,10 @@ def main():
 
     print(f"Twin {twin_motion_sensor_identity.did} upserted succesfully")
 
-    ### 7. SEARCH FOR TWIN RECEIVER BY LABEL
+    ##### TWIN INTERACTION #####
+    ### 7. SEARCH FOR TWIN RADIATOR
     """We need to Search in the entire Network of Spaces (scope=GLOBAL)
-    rather than locally (scope=LOCAL) in order to find Twins in a remote Host.
-    The only search parameter we want to use for the sake of this exercise is the Twin's Label
-    which must match exactly the Label of the Twin we want to find (and then take all the info we need)."""
+    rather than locally (scope=LOCAL) in order to find Twins in a remote Host."""
     search_headers = headers.copy()
     search_headers.update(
         {
@@ -106,15 +124,19 @@ def main():
         },
     }
 
+    print("Searching for Twin Radiator...")
+
     twins_found_list = search_twins(
         method=SEARCH_TWINS.method,
         endpoint=SEARCH_TWINS.url.format(host=HOST_URL),
         headers=search_headers,
         payload=payload,
-        scope="LOCAL",
+        scope="GLOBAL",
     )
 
     twin_radiator = twins_found_list[0]
+
+    # print(twin_radiator)
 
     """The search result will return an empty list of Twins found.
     In fact the Twin we want to search is not 'findable' from other Hosts
@@ -124,22 +146,28 @@ def main():
     ### 8. SEND INPUT MESSAGES
     """Once the Twin Receiver has been found,
     we can take all the info needed to send the Input message."""
-    message = {"turn_on": True}
-    encoded_data = base64.b64encode(json.dumps(message).encode()).decode()
-    payload = {"message": {"data": encoded_data, "mime": "application/json"}}
 
-    make_api_call(
-        method=SEND_INPUT_MESSAGE.method,
-        endpoint=SEND_INPUT_MESSAGE.url.format(
-            host=HOST_URL,
-            twin_sender_did=twin_motion_sensor_identity.did,
-            twin_receiver_host_id=twin_radiator["twinId"]["hostId"],
-            twin_receiver_did=twin_radiator["twinId"]["id"],
-            input_id=twin_radiator["inputs"][0]["inputId"]["id"],
-        ),
-        headers=headers,
-        payload=payload,
-    )
+    while True:
+        try:
+            message = {"turn_on": bool(randint(0, 1))}
+            encoded_data = base64.b64encode(json.dumps(message).encode()).decode()
+            payload = {"message": {"data": encoded_data, "mime": "application/json"}}
+
+            make_api_call(
+                method=SEND_INPUT_MESSAGE.method,
+                endpoint=SEND_INPUT_MESSAGE.url.format(
+                    host=HOST_URL,
+                    twin_sender_did=twin_motion_sensor_identity.did,
+                    twin_receiver_host_id=twin_radiator["twinId"]["hostId"],
+                    twin_receiver_did=twin_radiator["twinId"]["id"],
+                    input_id=twin_radiator["inputs"][0]["inputId"]["id"],
+                ),
+                headers=headers,
+                payload=payload,
+            )
+            sleep(2)
+        except KeyboardInterrupt:
+            break
 
 
 if __name__ == "__main__":

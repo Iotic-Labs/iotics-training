@@ -4,19 +4,18 @@ from time import sleep
 
 from helpers.constants import (
     PROPERTY_KEY_COMMENT,
-    PROPERTY_KEY_DEFINES,
     PROPERTY_KEY_HOST_ALLOW_LIST,
     PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
     PROPERTY_KEY_LABEL,
+    PROPERTY_KEY_TYPE,
     PROPERTY_VALUE_ALLOW_ALL,
     RADIATOR_ONTOLOGY,
     SUBSCRIBE_TO_INPUT,
     UPSERT_TWIN,
 )
+from helpers.stomp_client import StompClient
 from helpers.utilities import get_host_endpoints, make_api_call
 from iotics.lib.identity.api.high_level_api import get_rest_high_level_identity_api
-
-from helpers.stomp_client import StompClient
 
 HOST_URL = ""  # IOTICSpace URL
 
@@ -88,7 +87,6 @@ def main():
     )
 
     ### 5. DEFINE TWIN'S STRUCTURE
-    """comment"""
     properties = [
         {
             "key": PROPERTY_KEY_LABEL,
@@ -99,8 +97,17 @@ def main():
             "langLiteralValue": {"value": "This is a Twin Radiator", "lang": "en"},
         },
         {
-            "key": PROPERTY_KEY_DEFINES,
+            "key": PROPERTY_KEY_TYPE,
             "uriValue": {"value": RADIATOR_ONTOLOGY},
+        },
+        ### Add the following 2 Properties later ###
+        {
+            "key": PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
+            "uriValue": {"value": PROPERTY_VALUE_ALLOW_ALL},
+        },
+        {
+            "key": PROPERTY_KEY_HOST_ALLOW_LIST,
+            "uriValue": {"value": PROPERTY_VALUE_ALLOW_ALL},
         },
     ]
 
@@ -163,8 +170,7 @@ def main():
             print(decoded_feed_data)
 
     stomp_client = StompClient(
-        # stomp_endpoint=endpoints.get("stomp"),
-        stomp_endpoint="ws://localhost:8080/ws",
+        stomp_endpoint=endpoints.get("stomp"),
         callback=receiver_callback,
         token=token,
     )

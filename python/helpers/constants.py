@@ -27,6 +27,7 @@ PROPERTY_VALUE_MODEL = "https://data.iotics.com/app#Model"
 # ONTOLOGIES
 UNIT_DEGREE_CELSIUS = "http://qudt.org/vocab/unit/DEG_C"
 RADIATOR_ONTOLOGY = "https://www.wikidata.org/wiki/Q1572702"
+MOTION_SENSOR_ONTOLOGY = "https://www.wikidata.org/wiki/Q2659787"
 
 # REST ENDPOINTS
 RestEndpoint = namedtuple("RestEndpoint", ["method", "url"])
@@ -46,6 +47,9 @@ SUBSCRIBE_TO_INPUT = RestEndpoint(
 SEND_INPUT_MESSAGE = RestEndpoint(
     method="POST",
     url="{host}/qapi/twins/{twin_sender_did}/interests/hosts/{twin_receiver_host_id}/twins/{twin_receiver_did}/inputs/{input_id}/messages",
+)
+DESCRIBE_INPUT = RestEndpoint(
+    method="GET", url="{host}/qapi/twins/{twin_id}/inputs/{input_id}"
 )
 SEARCH_TWINS = RestEndpoint(method="POST", url="{host}/qapi/searches")
 DELETE_TWIN = RestEndpoint(method="DELETE", url="{host}/qapi/twins/{twin_id}")
