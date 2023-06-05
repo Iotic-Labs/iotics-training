@@ -70,7 +70,7 @@ class StompListener(stomp.ConnectionListener):
             logging.error("Received an unhandled error %s", error_msg)
 
     def on_message(self, headers, body):
-        self._callback(body)
+        self._callback(headers, body)
 
     def on_disconnected(self):
         if not self._reconnection_attempt:

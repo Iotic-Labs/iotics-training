@@ -7,7 +7,6 @@ from time import sleep
 from helpers.constants import (
     MOTION_SENSOR_ONTOLOGY,
     PROPERTY_KEY_COMMENT,
-    PROPERTY_KEY_DEFINES,
     PROPERTY_KEY_LABEL,
     PROPERTY_KEY_TYPE,
     RADIATOR_ONTOLOGY,
@@ -53,7 +52,7 @@ def main():
         duration=600,
     )
 
-    headers: dict = {
+    headers = {
         "accept": "application/json",
         "Iotics-ClientAppId": "twin_sender",  # Namespace used to group all the requests/responses
         "Content-Type": "application/json",
@@ -78,10 +77,7 @@ def main():
             "key": PROPERTY_KEY_COMMENT,
             "langLiteralValue": {"value": "This is a Twin Motion Sensor", "lang": "en"},
         },
-        {
-            "key": PROPERTY_KEY_TYPE,
-            "uriValue": {"value": MOTION_SENSOR_ONTOLOGY},
-        },
+        {"key": PROPERTY_KEY_TYPE, "uriValue": {"value": MOTION_SENSOR_ONTOLOGY}},
     ]
 
     ### 6. CREATE DIGITAL TWIN RADIATOR
@@ -117,7 +113,7 @@ def main():
             "text": "LP",
             "properties": [
                 {
-                    "key": PROPERTY_KEY_DEFINES,
+                    "key": PROPERTY_KEY_TYPE,
                     "uriValue": {"value": RADIATOR_ONTOLOGY},
                 }
             ],
@@ -157,14 +153,15 @@ def main():
                 method=SEND_INPUT_MESSAGE.method,
                 endpoint=SEND_INPUT_MESSAGE.url.format(
                     host=HOST_URL,
-                    twin_sender_did=twin_motion_sensor_identity.did,
+                    twin_sender_id=twin_motion_sensor_identity.did,
                     twin_receiver_host_id=twin_radiator["twinId"]["hostId"],
-                    twin_receiver_did=twin_radiator["twinId"]["id"],
+                    twin_receiver_id=twin_radiator["twinId"]["id"],
                     input_id=twin_radiator["inputs"][0]["inputId"]["id"],
                 ),
                 headers=headers,
                 payload=payload,
             )
+            print(f"Sent Input message {message}")
             sleep(2)
         except KeyboardInterrupt:
             break

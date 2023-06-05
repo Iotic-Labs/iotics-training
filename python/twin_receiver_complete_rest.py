@@ -65,7 +65,7 @@ def main():
         duration=600,
     )
 
-    headers: dict = {
+    headers = {
         "accept": "application/json",
         "Iotics-ClientAppId": "twin_radiator",  # Namespace used to group all the requests/responses
         "Content-Type": "application/json",
@@ -96,10 +96,7 @@ def main():
             "key": PROPERTY_KEY_COMMENT,
             "langLiteralValue": {"value": "This is a Twin Radiator", "lang": "en"},
         },
-        {
-            "key": PROPERTY_KEY_TYPE,
-            "uriValue": {"value": RADIATOR_ONTOLOGY},
-        },
+        {"key": PROPERTY_KEY_TYPE, "uriValue": {"value": RADIATOR_ONTOLOGY}},
         ### Add the following 2 Properties later ###
         {
             "key": PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
@@ -158,7 +155,7 @@ def main():
     The 'receiver_callback' will simply print received messages on the terminal."""
 
     @staticmethod
-    def receiver_callback(input_message):
+    def receiver_callback(headers, input_message):
         encoded_data = json.loads(input_message)
 
         try:
@@ -170,14 +167,12 @@ def main():
             print(decoded_feed_data)
 
     stomp_client = StompClient(
-        stomp_endpoint=endpoints.get("stomp"),
-        callback=receiver_callback,
-        token=token,
+        stomp_endpoint=endpoints.get("stomp"), callback=receiver_callback, token=token
     )
 
     stomp_client.subscribe(
         topic=SUBSCRIBE_TO_INPUT.url.format(
-            twin_receiver_did=twin_radiator_identity.did, input_id=input_id
+            twin_receiver_id=twin_radiator_identity.did, input_id=input_id
         ),
         subscription_id=f"{twin_radiator_identity.did}-{input_id}",
     )
@@ -185,7 +180,10 @@ def main():
     print("Waiting for Input messages...")
 
     while True:
-        sleep(10)
+        try:
+            sleep(10)
+        except KeyboardInterrupt:
+            break
 
 
 if __name__ == "__main__":

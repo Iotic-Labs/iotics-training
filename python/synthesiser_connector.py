@@ -1,28 +1,22 @@
 import base64
 import json
-from random import randint
+from datetime import datetime, timedelta, timezone
 from time import sleep
 
 from helpers.constants import (
-    PROPERTY_KEY_COLOUR,
     PROPERTY_KEY_COMMENT,
-    PROPERTY_KEY_CREATED_BY,
     PROPERTY_KEY_DEFINES,
-    PROPERTY_KEY_FROM_MODEL,
-    PROPERTY_KEY_HOST_ALLOW_LIST,
-    PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
     PROPERTY_KEY_LABEL,
-    PROPERTY_KEY_SPACE_NAME,
     PROPERTY_KEY_TYPE,
-    PROPERTY_VALUE_MODEL,
-    SAREF_TEMPERATURE_SENSOR_HAS_MODEL_ONTOLOGY,
+    RADIATOR_ONTOLOGY,
     SAREF_TEMPERATURE_SENSOR_ONTOLOGY,
-    SHARE_FEED_DATA,
-    UNIT_DEGREE_CELSIUS,
+    SEARCH_TWINS,
+    SEND_INPUT_MESSAGE,
+    SUBSCRIBE_TO_FEED,
     UPSERT_TWIN,
 )
 from helpers.stomp_client import StompClient
-from helpers.utilities import get_host_endpoints, make_api_call
+from helpers.utilities import get_host_endpoints, make_api_call, search_twins
 from iotics.lib.identity.api.high_level_api import get_rest_high_level_identity_api
 
 HOST_URL = ""  # IOTICSpace URL
@@ -62,7 +56,7 @@ def main():
 
     headers = {
         "accept": "application/json",
-        "Iotics-ClientAppId": "publisher_connector",
+        "Iotics-ClientAppId": "synthesiser_connector",
         "Content-Type": "application/json",
         "Authorization": f"Bearer {token}",
     }
