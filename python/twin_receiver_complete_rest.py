@@ -1,140 +1,189 @@
+import base64
+import json
 from time import sleep
 
 from helpers.constants import (
+    PROPERTY_KEY_COMMENT,
     PROPERTY_KEY_HOST_ALLOW_LIST,
     PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
     PROPERTY_KEY_LABEL,
-    PROPERTY_VALUE_ALLOW_ALL_HOSTS,
+    PROPERTY_KEY_TYPE,
+    PROPERTY_VALUE_ALLOW_ALL,
+    RADIATOR_ONTOLOGY,
+    SUBSCRIBE_TO_INPUT,
+    UPSERT_TWIN,
 )
-from helpers.identity_helper import IdentityHelper
-from helpers.iotics_via_rest import IOTICSviaREST
+from helpers.stomp_client import StompClient
+from helpers.utilities import get_host_endpoints, make_api_call
+from iotics.lib.identity.api.high_level_api import get_rest_high_level_identity_api
 
-RESOLVER_URL = ""  # IOTICSpace_URL/index.json
-HOST = ""  # IOTICSpace URL
-STOMP_ENDPOINT = ""  # HOST/index.json
+HOST_URL = ""  # IOTICSpace URL
 
 USER_KEY_NAME = ""
 USER_SEED = ""  # Copy-paste SEED string generated
-USER_DID = ""  # Copy-paste DID string generated
 
 AGENT_KEY_NAME = ""
 AGENT_SEED = ""  # Copy-paste SEED string generated
 
 
 def main():
-    ### 1. INSTANTIATE AN IDENTITY HELPER
-    identity_helper = IdentityHelper(resolver_url=RESOLVER_URL, host_url=HOST)
-
-    ### 2. GENERATE USER AND AGENT SEED
-    identity_helper.create_seed()  # Create a seed for the User
-    identity_helper.create_seed()  # Create a seed for the Agent
-
-    ### 3. CREATE USER AND AGENT IDENTITY, THEN DELEGATE
-    """Here we are using the Regular Identity library where we
-    create the User Identity, Agent Identity and Authentication Delegation
-    in 3 different operations.
-    These info will have to be stored safely !!
-    Otherwise all the Twins created with these 2 Identities
-    cannot be updated/deleted with different Identities"""
-    user_identity = identity_helper.create_user_identity(
-        user_key_name=USER_KEY_NAME, user_seed=USER_SEED
-    )
-    agent_identity = identity_helper.create_agent_identity(
-        agent_key_name=AGENT_KEY_NAME, agent_seed=AGENT_SEED
-    )
-    identity_helper.authentication_delegation(
-        user_identity=user_identity, agent_identity=agent_identity
+    ##### IDENTITY MANAGEMENT #####
+    ### 1. INSTANTIATE AN IDENTITY API OBJECT
+    endpoints = get_host_endpoints(host_url=HOST_URL)
+    identity_api = get_rest_high_level_identity_api(
+        resolver_url=endpoints.get("resolver")
     )
 
-    ### 4. GENERATE NEW TOKEN
-    """For the sake of this exercise we want to create a token
-    that lasts for quite a good amount of time. If someone steals this token
-    they will be able to perform any operation against any Twin
-    created with your Agent (Control Delegation)."""
-    identity_helper.refresh_token(
-        user_did=USER_DID, agent_identity=agent_identity, duration=600
+    ### 2. CREATE AGENT AND USER IDENTITY, THEN DELEGATE
+    """A User and an Agent Identity need to be created with Authentication Delegation so you can:
+    1. Create Twin Identities;
+    2. Generate a Token to use the IOTICS API.
+    Be aware that, if Key Name and Seed don't change, multiple calls of the following function
+    will not create new Identities, it will retrieve the existing ones."""
+    (
+        user_identity,
+        agent_identity,
+    ) = identity_api.create_user_and_agent_with_auth_delegation(
+        user_seed=bytes.fromhex(USER_SEED),
+        user_key_name=USER_KEY_NAME,
+        agent_seed=bytes.fromhex(AGENT_SEED),
+        agent_key_name=AGENT_KEY_NAME,
     )
 
-    ### 5. INSTANTIATE IOTICSviaREST AND SETUP
-    """Here we need to setup the Stomp Client as
-    the Twin Receiver will have to wait for incoming Input messages."""
-    iotics = IOTICSviaREST(host_url=HOST, stomp_url=STOMP_ENDPOINT)
-    iotics.setup(token=identity_helper.get_token())
-
-    ### 6. CREATE TWIN RECEIVER IDENTITY, THEN DELEGATE
-    """We are going to reuse the AGENT_SEED to create any new Twin Identity.
-    Same as step 3, multiple creations of the Twin Identity won't (re-)create the Identity.
-    Either take the 'did' field of the Twin Identity generated
-    (i.e.: twin_identity_rec = twin_identity_rec.did) or
-    copy-paste the same field when printed on the terminal."""
-    twin_identity_rec = identity_helper.create_twin_identity(
-        twin_key_name="TwinRec", twin_seed=AGENT_SEED, print_output=True
+    ### 3. GENERATE NEW TOKEN AND HEADERS
+    """Any IOTICS operation requires a token (JWT). The latter can be created using:
+    1. A User DID;
+    2. An Agent Identity;
+    3. A duration (in seconds)
+    This token will only be valid for the duration expressed on point 3 above.
+    When the token expires you won't be able to use the API so you need to generate a new token.
+    Please remember that the longer the token's duration, the less secure your Twins are.
+    (The token may be stolen and a malicious user can use your Twins on your behalf)."""
+    token = identity_api.create_agent_auth_token(
+        agent_registered_identity=agent_identity,
+        user_did=user_identity.did,
+        duration=600,
     )
-    identity_helper.control_delegation(
-        twin_identity=twin_identity_rec, agent_identity=agent_identity
+
+    headers = {
+        "accept": "application/json",
+        "Iotics-ClientAppId": "twin_radiator",  # Namespace used to group all the requests/responses
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",  # This is where the token will be used
+    }
+
+    ##### TWIN SETUP #####
+    ### 4. CREATE TWIN RADIATOR IDENTITY WITH CONTROL DELEGATION
+    """ We now need to create a new Twin Identity which will be used for our Twin Radiator.
+    Only Agents can perform actions against a Twin.
+    This means, after creating the Twin Identity it has to "control-delegate" an Agent Identity
+    so the latter can control the Digital Twin."""
+    twin_radiator_identity = identity_api.create_twin_with_control_delegation(
+        # The Twin Key Name's concept is the same as Agent and User Key Name
+        twin_key_name="TwinRadiator",
+        # It is a best-practice to re-use the "AGENT_SEED" as a Twin seed.
+        twin_seed=bytes.fromhex(AGENT_SEED),
+        agent_registered_identity=agent_identity,
     )
-    twin_rec_did = twin_identity_rec.did
 
-    ### 7. DESCRIBE TWIN RECEIVER
-    """The description of a Twin without basic Structure won't work.
-    In fact there's nothing to be described (Twin Identity != Digital Twin)"""
-    twin_description = iotics.describe_twin(twin_did=twin_rec_did)
-    print(twin_description)
+    ### 5. DEFINE TWIN'S STRUCTURE
+    properties = [
+        {
+            "key": PROPERTY_KEY_LABEL,
+            "langLiteralValue": {"value": "Twin Radiator - LP", "lang": "en"},
+        },
+        {
+            "key": PROPERTY_KEY_COMMENT,
+            "langLiteralValue": {"value": "This is a Twin Radiator", "lang": "en"},
+        },
+        {"key": PROPERTY_KEY_TYPE, "uriValue": {"value": RADIATOR_ONTOLOGY}},
+        ### Add the following 2 Properties later ###
+        {
+            "key": PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
+            "uriValue": {"value": PROPERTY_VALUE_ALLOW_ALL},
+        },
+        {
+            "key": PROPERTY_KEY_HOST_ALLOW_LIST,
+            "uriValue": {"value": PROPERTY_VALUE_ALLOW_ALL},
+        },
+    ]
 
-    ### 8. UPSERT TWIN RECEIVER WITH LABEL AND INPUT, THEN DESCRIBE TWIN
-    """The only way to create a Twin with an Input via REST is through the Upsert operation.
-    Let's start without AllowLists: the Twin won't be found from a remote Host.
-    Then add hostMetadataAllowList: the Twin will be found but
-    won't be able to interact with other Twins from a remote Host.
-    Then add hostAllowList: the Twin will now correctly receive data."""
-    iotics.upsert_twin(
-        twin_did=twin_rec_did,
-        properties=[
-            {
-                "key": PROPERTY_KEY_LABEL,
-                "langLiteralValue": {"value": "Twin Receiver - LP", "lang": "en"},
-            },
-            {
-                "key": PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
-                "uriValue": {"value": PROPERTY_VALUE_ALLOW_ALL_HOSTS},
-            },
-            {
-                "key": PROPERTY_KEY_HOST_ALLOW_LIST,
-                "uriValue": {"value": PROPERTY_VALUE_ALLOW_ALL_HOSTS},
-            },
-            {
-                "key": PROPERTY_KEY_HOST_ALLOW_LIST,
-                "uriValue": {"value": ""},
-            },
-        ],
-        inputs=[
-            {
-                "id": "on_off_switch",
-                "values": [
-                    {
-                        "comment": "Turn ON/OFF light",
-                        "dataType": "boolean",
-                        "label": "light_on",
-                    }
-                ],
-            }
-        ],
+    input_id = "radiator_switch"
+    input_label = "turn_on"
+    inputs = [
+        {
+            "id": input_id,
+            "properties": [
+                {
+                    "key": PROPERTY_KEY_LABEL,
+                    "langLiteralValue": {"value": "ON/OFF switch", "lang": "en"},
+                }
+            ],
+            "values": [
+                {
+                    "comment": "ON/OFF switch for the Radiator",
+                    "dataType": "boolean",
+                    "label": input_label,
+                }
+            ],
+        }
+    ]
+
+    ### 6. CREATE DIGITAL TWIN RADIATOR
+    """We can now use the Upsert Twin operation in order to:
+    1. Create the Digital Twin;
+    2. Add Twin's Metadata;
+    3. Add a Input object (Input's Metadata + Input's Value) to this Twin."""
+    upsert_twin_payload = {
+        "twinId": {"id": twin_radiator_identity.did},
+        "location": {"lat": 51.5, "lon": -0.1},
+        "properties": properties,
+        "inputs": inputs,
+    }
+    make_api_call(
+        method=UPSERT_TWIN.method,
+        endpoint=UPSERT_TWIN.url.format(host=HOST_URL),
+        headers=headers,
+        payload=upsert_twin_payload,
     )
-    twin_description = iotics.describe_twin(twin_did=twin_rec_did)
-    print(twin_description)
 
-    ### 9. WAIT FOR INPUT MESSAGES
+    print(f"Twin {twin_radiator_identity.did} upserted succesfully")
+
+    ##### TWIN INTERACTION #####
+    ### 7. WAIT FOR INPUT MESSAGES
     """Here is where STOMP comes into action.
     The 'receiver_callback' will simply print received messages on the terminal."""
-    iotics.wait_for_input_messages(
-        twin_receiver_did=twin_rec_did, input_id="on_off_switch"
-    )
-    while True:
-        sleep(10)
 
-    ### 10. DELETE TWIN RECEIVER
-    """Let's delete the Twin to conclude the exercise"""
-    iotics.delete_twin(twin_did=twin_rec_did)
+    @staticmethod
+    def receiver_callback(headers, input_message):
+        encoded_data = json.loads(input_message)
+
+        try:
+            data = encoded_data["message"]["data"]
+        except KeyError:
+            print("A KeyError occurred in the receiver_callback")
+        else:
+            decoded_feed_data = json.loads(base64.b64decode(data).decode("ascii"))
+            print(decoded_feed_data)
+
+    stomp_client = StompClient(
+        stomp_endpoint=endpoints.get("stomp"), callback=receiver_callback, token=token
+    )
+
+    stomp_client.subscribe(
+        topic=SUBSCRIBE_TO_INPUT.url.format(
+            twin_receiver_id=twin_radiator_identity.did, input_id=input_id
+        ),
+        subscription_id=f"{twin_radiator_identity.did}-{input_id}",
+    )
+
+    print("Waiting for Input messages...")
+
+    while True:
+        try:
+            sleep(10)
+        except KeyboardInterrupt:
+            break
 
 
 if __name__ == "__main__":

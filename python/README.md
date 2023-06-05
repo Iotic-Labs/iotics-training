@@ -8,56 +8,28 @@ The training in Python will cover all the concepts you need to be aware of to st
   - Create a Twin Sender
 - Afternoon Session
   - Create a Publisher Connector
-  - Create a Follower Connector
+  - Create a Synthesiser Connector
 
-More details will be given on the day of the training. For now we only need you to setup your laptop so you come prepared for the code excercises.
+More details will be given on the day of the training. For now we only need you to set up your laptop so you come prepared for the training.
 
 ## Laptop Setup
 
-1.  Install [Python](https://www.python.org/downloads/) (3.7+) on your machine;
-2.  Create a new Python virtual environment:
+Before the Training Session, you first need to create and activate your Python virtual environment. After installing Python (version <= 3.10), you can do that automatically by following the instructions below:
 ```bash
-ON LINUX:
-python3 -m venv iotics_training
-ON WINDOWS:
-python -m venv iotics_training
-```
-3.  Activate the virtual environment:
-```bash
-ON LINUX:
-source iotics_training/bin/activate
-ON WINDOWS:
-.\iotics_training\Scripts\Activate.bat
-ON WINDOWS (powershell):
-.\iotics_training\Scripts\Activate.ps1
-```
-4.  Download the IOTICS Stomp Library from [this](https://github.com/Iotic-Labs/iotics-host-lib/blob/master/stomp-client/iotic.web.stomp-1.0.6.tar.gz) link on your local machine;
-5.  Install the above library in your virtual environment along with the Identity Library and the gRPC Python Client Lib:
-```bash
-pip install -U pip setuptools wheel iotics-identity iotic.web.stomp-1.0.6.tar.gz iotics-grpc-client
+make setup
+source ./iotics_training/bin/activate
 ```
 
-## Complete Code
+Alternatively you can follow the manual steps below:
 
-In order to execute the complete code scripts, you first need to set the required constant variables on top of each script:
-```python
-RESOLVER_URL = ""  # IOTICSpace_URL/index.json
-HOST = ""  # IOTICSpace URL
+1.  Create a new Python virtual environment:
+    - Linux: `python3 -m venv iotics_tutorials`
+    - Windows: `python -m venv iotics_tutorials`
 
-USER_KEY_NAME = ""
-USER_SEED = ""  # Copy-paste SEED string generated
-USER_DID = ""  # Copy-paste DID string generated
+2.  Activate the virtual environment:
+    - Linux: `source ./iotics_tutorials/bin/activate`
+    - Windows: `.\iotics_tutorials\Scripts\Activate.bat`
+    - Windows (powershell): `.\iotics_tutorials\Scripts\Activate.ps1`
 
-AGENT_KEY_NAME = ""
-AGENT_SEED = ""  # Copy-paste SEED string generated
-```
-**Please Note**: in a Production environment, rather than make them visible you may want the above credentials to be loaded from a Vault or somewhere else safe and secure.
-
-The Morning Session exercises can be executed in this order:
-1. `twin_receiver_complete.py` (either the `rest` or `grpc` version)
-2. `twin_sender_complete.py` (either the `rest` or `grpc` version)
-
-The Afternoon Session can be executed in this order:
-1. `publisher_connector_complete_grpc.py`
-2. (optional - "Bonus" exercise) `bonus.py`
-3. `follower_connector_complete_grpc.py`
+3.  Download the IOTICS Stomp Library from [this](https://github.com/Iotic-Labs/iotics-host-lib/blob/master/stomp-client/iotic.web.stomp-1.0.6.tar.gz) link to the `python` folder of this repository;
+4.  Install the required dependencies: `pip install -r requirements.txt`
