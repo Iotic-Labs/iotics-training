@@ -13,8 +13,16 @@ from helpers.constants import (
     SUBSCRIBE_TO_INPUT,
     UPSERT_TWIN,
 )
+from helpers.identity_auth import Identity
 from helpers.stomp_client import StompClient
 from helpers.utilities import get_host_endpoints, make_api_call
+from iotics.lib.grpc.helpers import (
+    create_input_with_meta,
+    create_location,
+    create_property,
+    create_value,
+)
+from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 from iotics.lib.identity.api.high_level_api import get_rest_high_level_identity_api
 
 HOST_URL = ""  # IOTICSpace URL

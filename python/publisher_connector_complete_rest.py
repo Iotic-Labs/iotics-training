@@ -147,7 +147,7 @@ def main():
         payload=upsert_twin_payload,
     )
 
-    print(f"Twin Model {twin_temperature_model_identity.did} upserted succesfully")
+    print(f"Twin Model {twin_temperature_model_identity.did} created succesfully")
 
     ### 7. CREATE DIGITAL TWINS FROM MODEL
     twin_from_model_id_list = []
@@ -218,7 +218,7 @@ def main():
             headers=headers,
             payload=upsert_twin_payload,
         )
-        print(f"Twin {twin_temperature_model_identity.did} upserted succesfully")
+        print(f"Twin {twin_temperature_model_identity.did} created succesfully")
 
         twin_from_model_id_list.append(twin_temperature_identity.did)
 

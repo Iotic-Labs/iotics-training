@@ -15,7 +15,10 @@ from helpers.constants import (
     SEND_INPUT_MESSAGE,
     UPSERT_TWIN,
 )
+from helpers.identity_auth import Identity
 from helpers.utilities import get_host_endpoints, make_api_call, search_twins
+from iotics.lib.grpc.helpers import create_property
+from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 from iotics.lib.identity.api.high_level_api import get_rest_high_level_identity_api
 
 HOST_URL = ""  # IOTICSpace URL

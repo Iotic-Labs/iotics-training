@@ -93,7 +93,7 @@ def main():
         payload=upsert_twin_payload,
     )
 
-    print(f"Twin {twin_thermostat_identity.did} upserted succesfully")
+    print(f"Twin {twin_thermostat_identity.did} created succesfully")
 
     ##### TWIN INTERACTION #####
     ### 7. SEARCH FOR TWIN RADIATOR
