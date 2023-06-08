@@ -21,7 +21,6 @@ from helpers.constants import (
     UNIT_DEGREE_CELSIUS,
     UPSERT_TWIN,
 )
-from helpers.stomp_client import StompClient
 from helpers.utilities import get_host_endpoints, make_api_call
 from iotics.lib.identity.api.high_level_api import get_rest_high_level_identity_api
 
@@ -147,7 +146,7 @@ def main():
         payload=upsert_twin_payload,
     )
 
-    print(f"Twin Model {twin_temperature_model_identity.did} upserted succesfully")
+    print(f"Twin Model {twin_temperature_model_identity.did} created succesfully")
 
     ### 7. CREATE DIGITAL TWINS FROM MODEL
     twin_from_model_id_list = []
@@ -157,6 +156,7 @@ def main():
             twin_seed=bytes.fromhex(AGENT_SEED),
             agent_registered_identity=agent_identity,
         )
+
         properties_twin_from_model = [
             {
                 "key": PROPERTY_KEY_FROM_MODEL,
@@ -218,7 +218,7 @@ def main():
             headers=headers,
             payload=upsert_twin_payload,
         )
-        print(f"Twin {twin_temperature_model_identity.did} upserted succesfully")
+        print(f"Twin {twin_temperature_model_identity.did} created succesfully")
 
         twin_from_model_id_list.append(twin_temperature_identity.did)
 

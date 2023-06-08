@@ -92,7 +92,7 @@ def main():
         payload=upsert_twin_payload,
     )
 
-    print(f"Twin {twin_motion_sensor_identity.did} upserted succesfully")
+    print(f"Twin {twin_motion_sensor_identity.did} created succesfully")
 
     ##### TWIN INTERACTION #####
     ### 7. SEARCH FOR TWIN RADIATOR
@@ -130,9 +130,14 @@ def main():
         scope="GLOBAL",
     )
 
-    twin_radiator = twins_found_list[0]
+    print(twins_found_list)
 
-    # print(twin_radiator)
+    """The search result will return an empty list of Twins found.
+    In fact the Twin we want to search is not 'findable' from other Hosts
+    unless its hostMetadataAllowList is set either to All Host or
+    the Host ID from which we are searching for."""
+
+    twin_radiator = twins_found_list[0]
 
     """The search result will return an empty list of Twins found.
     In fact the Twin we want to search is not 'findable' from other Hosts

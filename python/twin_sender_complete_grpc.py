@@ -1,110 +1,125 @@
-from helpers.constants import PROPERTY_KEY_LABEL
-from helpers.identity_helper import IdentityHelper
+from random import randint
+from time import sleep
+
+from helpers.constants import (
+    MOTION_SENSOR_ONTOLOGY,
+    PROPERTY_KEY_COMMENT,
+    PROPERTY_KEY_LABEL,
+    PROPERTY_KEY_TYPE,
+    RADIATOR_ONTOLOGY,
+)
+from helpers.identity_auth import Identity
+from helpers.utilities import get_host_endpoints
 from iotics.lib.grpc.helpers import create_property
 from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 
-RESOLVER_URL = ""  # IOTICSpace_URL/index.json
-HOST = ""  # IOTICSpace URL
+HOST_URL = ""  # IOTICSpace URL
 
 USER_KEY_NAME = ""
 USER_SEED = ""  # Copy-paste SEED string generated
-USER_DID = ""  # Copy-paste DID string generated
 
 AGENT_KEY_NAME = ""
 AGENT_SEED = ""  # Copy-paste SEED string generated
 
 
 def main():
-    ### 1. INSTANTIATE AN IDENTITY HELPER
-    identity_helper = IdentityHelper(
-        resolver_url=RESOLVER_URL, host_url=HOST, grpc=True
+    ##### IDENTITY MANAGEMENT #####
+    ### 1. INSTANTIATE AN IDENTITY API OBJECT
+    endpoints = get_host_endpoints(host_url=HOST_URL)
+    identity_api = Identity(
+        resolver_url=endpoints.get("resolver"), grpc_endpoint=endpoints.get("grpc")
     )
 
-    ### 2. CREATE AGENT IDENTITY, THEN DELEGATE
-    """The creation of the User is only used to retrieve the User Identity info.
-    The User Identity in fact won't be (re-)created if the same creds will be used."""
-    identity_helper.create_seed()  # Create a new Agent Seed
-    agent_identity = identity_helper.create_agent_identity(
-        agent_key_name=AGENT_KEY_NAME, agent_seed=AGENT_SEED, print_output=True
-    )
-    user_identity = identity_helper.create_user_identity(
-        user_key_name=USER_KEY_NAME, user_seed=USER_SEED
-    )
-    identity_helper.authentication_delegation(
-        user_identity=user_identity, agent_identity=agent_identity
+    ### 2. CREATE AGENT AND USER IDENTITY, THEN DELEGATE
+    identity_api.create_user_and_agent_with_auth_delegation(
+        user_seed=bytes.fromhex(USER_SEED),
+        user_key_name=USER_KEY_NAME,
+        agent_seed=bytes.fromhex(AGENT_SEED),
+        agent_key_name=AGENT_KEY_NAME,
     )
 
     ### 3. GENERATE NEW TOKEN
-    """The default (according to the IdentityHelper class) duration of the Token
-    should be enough for this exercise."""
-    identity_helper.refresh_token(user_did=USER_DID, agent_identity=agent_identity)
+    identity_api.refresh_token(duration=600)
 
-    ### 4. INSTANTIATE IOTICSviagRPC AND SETUP
-    iotics_api = IOTICSviagRPC(auth=identity_helper)
+    ##### TWIN SETUP #####
+    ### 4. INSTANTIATE IOTICSviagRPC
+    iotics_api = IOTICSviagRPC(auth=identity_api)
 
     ### 5. CREATE TWIN SENDER IDENTITY WITH CONTROL DELEGATION
-    """Let's use the HighLevel Identity library to create the Twin Identity
-    and delegate the Agent in a single step.
-    Same as step 2, multiple creations of the Twin Identity won't (re-)create the Identity.
-    Either take the 'did' field of the Twin Identity generated
-    (i.e.: twin_sender_did = twin_sender_identity.did) or
-    copy-paste the same field when printed on the terminal."""
-    twin_sender_identity = identity_helper.create_twin_with_control_delegation(
-        twin_key_name="TwinSend",
-        twin_seed=AGENT_SEED,
-        agent_identity=agent_identity,
-        print_output=True,
+    twin_motion_sensor_identity = identity_api.create_twin_with_control_delegation(
+        twin_key_name="TwinMotionSensor", twin_seed=bytes.fromhex(AGENT_SEED)
     )
-    twin_sender_did = twin_sender_identity.did
 
-    ### 6. CREATE TWIN SENDER'S BASIC STRUCTURE, THEN DESCRIBE TWIN
-    """For the sake of the training, the Twin Sender only needs the Basic Structure
-    (no Properties/Feeds/Inputs) to send Input messages."""
-    iotics_api.create_twin(twin_did=twin_sender_did)
-    twin_description = iotics_api.describe_twin(twin_did=twin_sender_did)
-    print(twin_description)
+    ### 6. DEFINE TWIN'S STRUCTURE
+    properties = [
+        create_property(
+            key=PROPERTY_KEY_LABEL, value="Twin Motion Sensor - LP", language="en"
+        ),
+        create_property(
+            key=PROPERTY_KEY_COMMENT,
+            value="This is a Twin Motion Sensor",
+            language="en",
+        ),
+        create_property(
+            key=PROPERTY_KEY_TYPE, value=MOTION_SENSOR_ONTOLOGY, is_uri=True
+        ),
+    ]
 
-    ### 7. SEARCH FOR TWIN RECEIVER BY LABEL
+    ### 7. CREATE DIGITAL TWIN RADIATOR
+    iotics_api.upsert_twin(
+        twin_did=twin_motion_sensor_identity.did, properties=properties
+    )
+
+    print(f"Twin {twin_motion_sensor_identity.did} created succesfully")
+
+    ##### TWIN INTERACTION #####
+    ### 8. SEARCH FOR TWIN RADIATOR
     """We need to Search in the entire Network of Spaces (scope=GLOBAL)
-    rather than locally (scope=LOCAL) in order to find Twins in a remote Host.
-    The only search parameter we want to use for the sake of this exercise is the Twin's Label
-    which must match exactly the Label of the Twin we want to find (and then take all the info we need)."""
+    rather than locally (scope=LOCAL) in order to find Twins in a remote Host."""
     twins_found_list = []
     payload = iotics_api.get_search_payload(
+        text="LP",
         properties=[
-            create_property(
-                key=PROPERTY_KEY_LABEL, value="Twin Receiver - LP", language="en"
-            )
+            create_property(key=PROPERTY_KEY_TYPE, value=RADIATOR_ONTOLOGY, is_uri=True)
         ],
         response_type="FULL",
     )
+
+    print("Searching for Twin Radiator...")
+
     for response in iotics_api.search_iter(
         client_app_id="twin_sender", payload=payload, scope="GLOBAL"
     ):
         twins = response.payload.twins
         twins_found_list.extend(twins)
 
-    print(twins_found_list)
+    # print(twins_found_list)
 
     """The search result will return an empty list of Twins found.
     In fact the Twin we want to search is not 'findable' from other Hosts
     unless its hostMetadataAllowList is set either to All Host or
     the Host ID from which we are searching for."""
 
-    ### 8. SEND INPUT MESSAGES
+    twin_radiator = twins_found_list[0]
+
+    ### 9. SEND INPUT MESSAGES
     """Once the Twin Receiver has been found,
     we can take all the info needed to send the Input message."""
-    iotics_api.send_input_message(
-        sender_twin_id=twin_sender_did,
-        receiver_twin_id="",
-        remote_host_id="",
-        input_id="",
-        message={"light_on": True},
-    )
+    while True:
+        try:
+            message = {"turn_on": bool(randint(0, 1))}
 
-    ### 9. DELETE TWIN SENDER
-    """Let's delete the Twin to conclude the exercise"""
-    iotics_api.delete_twin(twin_did=twin_sender_did)
+            iotics_api.send_input_message(
+                sender_twin_id=twin_motion_sensor_identity.did,
+                receiver_twin_id=twin_radiator.twinId.id,
+                remote_host_id=twin_radiator.twinId.hostId,
+                input_id=twin_radiator.inputs[0].inputId.id,
+                message=message,
+            )
+            print(f"Sent Input message {message}")
+            sleep(2)
+        except KeyboardInterrupt:
+            break
 
 
 if __name__ == "__main__":

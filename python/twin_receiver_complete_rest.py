@@ -147,7 +147,7 @@ def main():
         payload=upsert_twin_payload,
     )
 
-    print(f"Twin {twin_radiator_identity.did} upserted succesfully")
+    print(f"Twin {twin_radiator_identity.did} created succesfully")
 
     ##### TWIN INTERACTION #####
     ### 7. WAIT FOR INPUT MESSAGES
