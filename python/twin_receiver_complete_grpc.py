@@ -19,13 +19,13 @@ from iotics.lib.grpc.helpers import (
 )
 from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 
-HOST_URL = "https://demo.dev.iotics.space"  # IOTICSpace URL
+HOST_URL = ""  # IOTICSpace URL
 
-USER_KEY_NAME = "00"
-USER_SEED = "a7631ed56882044021224d06c8deb966afb6a5db2115c805900b02c35b8188ce"  # Copy-paste SEED string generated
+USER_KEY_NAME = ""
+USER_SEED = ""  # Copy-paste SEED string generated
 
-AGENT_KEY_NAME = "00"
-AGENT_SEED = "e8da559d6197e3160d48c901db985e1b32984c7c72c2613a5e1cf7692e6e6e48"  # Copy-paste SEED string generated
+AGENT_KEY_NAME = ""
+AGENT_SEED = ""  # Copy-paste SEED string generated
 
 
 def main():

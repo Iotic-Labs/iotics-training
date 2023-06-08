@@ -1,15 +1,14 @@
 import base64
 import json
+import threading
 from datetime import datetime, timedelta, timezone
-from time import sleep
 
 from helpers.constants import (
     PROPERTY_KEY_COMMENT,
-    PROPERTY_KEY_DEFINES,
     PROPERTY_KEY_LABEL,
     PROPERTY_KEY_TYPE,
     RADIATOR_ONTOLOGY,
-    SAREF_TEMPERATURE_SENSOR_ONTOLOGY,
+    SAREF_TEMPERATURE_SENSOR_HAS_MODEL_ONTOLOGY,
     SEARCH_TWINS,
     SEND_INPUT_MESSAGE,
     SUBSCRIBE_TO_FEED,
@@ -149,8 +148,8 @@ def main():
             "text": "LP",
             "properties": [
                 {
-                    "key": PROPERTY_KEY_DEFINES,
-                    "uriValue": {"value": SAREF_TEMPERATURE_SENSOR_ONTOLOGY},
+                    "key": SAREF_TEMPERATURE_SENSOR_HAS_MODEL_ONTOLOGY,
+                    "stringLiteralValue": {"value": "T1234"},
                 }
             ],
         },
@@ -168,28 +167,12 @@ def main():
 
     print(f"Found {len(twins_found_list)} Twins")
 
-    def thermostat_logic(temperature):
-        message = {"turn_on": False}
+    def thermostat_logic(temperature: int, twin_publisher_id: str):
+        event: threading.Event = events_dict.get(twin_publisher_id)
         if temperature <= 15:
-            message = {"turn_on": True}
-
-        encoded_data = base64.b64encode(json.dumps(message).encode()).decode()
-        payload = {"message": {"data": encoded_data, "mime": "application/json"}}
-
-        make_api_call(
-            method=SEND_INPUT_MESSAGE.method,
-            endpoint=SEND_INPUT_MESSAGE.url.format(
-                host=HOST_URL,
-                twin_sender_id=twin_thermostat_identity.did,
-                twin_receiver_host_id=twin_radiator["twinId"]["hostId"],
-                twin_receiver_id=twin_radiator["twinId"]["id"],
-                input_id=twin_radiator["inputs"][0]["inputId"]["id"],
-            ),
-            headers=headers,
-            payload=payload,
-        )
-
-        print(f"Sent Input message {message}")
+            event.set()
+        else:
+            event.clear()
 
     @staticmethod
     def receiver_callback(headers, feed_data):
@@ -197,17 +180,22 @@ def main():
 
         try:
             data = encoded_data["feedData"]["data"]
+            twin_publisher_id = encoded_data["interest"]["followedFeedId"]["twinId"]
         except KeyError:
             print("A KeyError occurred in the receiver_callback")
         else:
             decoded_feed_data = json.loads(base64.b64decode(data).decode("ascii"))
-            thermostat_logic(decoded_feed_data["sensor_reading"])
+            thermostat_logic(
+                temperature=decoded_feed_data["sensor_reading"],
+                twin_publisher_id=twin_publisher_id,
+            )
 
     stomp_client = StompClient(
         stomp_endpoint=endpoints.get("stomp"), callback=receiver_callback, token=token
     )
 
     ### 9. SUBSCRIBE TO FEED DATA
+    events_dict = {}
     for twin_temperature in twins_found_list:
         twin_publisher_host_id = twin_temperature["twinId"]["hostId"]
         twin_publisher_id = twin_temperature["twinId"]["id"]
@@ -223,9 +211,39 @@ def main():
             subscription_id=f"{twin_publisher_id}-{feed_id}",
         )
 
+        event = threading.Event()
+        events_dict.update({twin_publisher_id: event})
+
+    ### 9. SEND INPUT MESSAGES
+    previous_message_sent = {"turn_on": True}
     while True:
         try:
-            sleep(10)
+            if all(eve.is_set() for eve in events_dict.values()):
+                message = {"turn_on": True}
+            else:
+                message = {"turn_on": False}
+
+            if message != previous_message_sent:
+                encoded_data = base64.b64encode(json.dumps(message).encode()).decode()
+                payload = {
+                    "message": {"data": encoded_data, "mime": "application/json"}
+                }
+
+                make_api_call(
+                    method=SEND_INPUT_MESSAGE.method,
+                    endpoint=SEND_INPUT_MESSAGE.url.format(
+                        host=HOST_URL,
+                        twin_sender_id=twin_thermostat_identity.did,
+                        twin_receiver_host_id=twin_radiator["twinId"]["hostId"],
+                        twin_receiver_id=twin_radiator["twinId"]["id"],
+                        input_id=twin_radiator["inputs"][0]["inputId"]["id"],
+                    ),
+                    headers=headers,
+                    payload=payload,
+                )
+
+                print(f"Sent Input message {message}")
+                previous_message_sent = message
         except KeyboardInterrupt:
             break
 

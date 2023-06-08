@@ -73,7 +73,7 @@ def main():
     print(f"Twin {twin_motion_sensor_identity.did} created succesfully")
 
     ##### TWIN INTERACTION #####
-    ### 7. SEARCH FOR TWIN RADIATOR
+    ### 8. SEARCH FOR TWIN RADIATOR
     """We need to Search in the entire Network of Spaces (scope=GLOBAL)
     rather than locally (scope=LOCAL) in order to find Twins in a remote Host."""
     twins_found_list = []
@@ -102,7 +102,7 @@ def main():
 
     twin_radiator = twins_found_list[0]
 
-    ### 8. SEND INPUT MESSAGES
+    ### 9. SEND INPUT MESSAGES
     """Once the Twin Receiver has been found,
     we can take all the info needed to send the Input message."""
     while True:

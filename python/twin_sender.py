@@ -7,7 +7,6 @@ from time import sleep
 from helpers.constants import (
     MOTION_SENSOR_ONTOLOGY,
     PROPERTY_KEY_COMMENT,
-    PROPERTY_KEY_DEFINES,
     PROPERTY_KEY_LABEL,
     PROPERTY_KEY_TYPE,
     RADIATOR_ONTOLOGY,

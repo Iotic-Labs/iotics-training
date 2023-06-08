@@ -21,7 +21,6 @@ from helpers.constants import (
     UNIT_DEGREE_CELSIUS,
     UPSERT_TWIN,
 )
-from helpers.stomp_client import StompClient
 from helpers.utilities import get_host_endpoints, make_api_call
 from iotics.lib.identity.api.high_level_api import get_rest_high_level_identity_api
 
@@ -157,6 +156,7 @@ def main():
             twin_seed=bytes.fromhex(AGENT_SEED),
             agent_registered_identity=agent_identity,
         )
+
         properties_twin_from_model = [
             {
                 "key": PROPERTY_KEY_FROM_MODEL,
