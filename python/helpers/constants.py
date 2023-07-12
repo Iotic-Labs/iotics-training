@@ -55,3 +55,7 @@ DESCRIBE_INPUT = RestEndpoint(
 )
 SEARCH_TWINS = RestEndpoint(method="POST", url="{host}/qapi/searches")
 DELETE_TWIN = RestEndpoint(method="DELETE", url="{host}/qapi/twins/{twin_id}")
+
+# USER CREDENTIALS
+USER_KEY_NAME = ""
+USER_SEED = ""
