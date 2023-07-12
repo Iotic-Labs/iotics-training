@@ -20,17 +20,16 @@ from helpers.constants import (
     SHARE_FEED_DATA,
     UNIT_DEGREE_CELSIUS,
     UPSERT_TWIN,
+    USER_KEY_NAME,
+    USER_SEED,
 )
 from helpers.utilities import get_host_endpoints, make_api_call
 from iotics.lib.identity.api.high_level_api import get_rest_high_level_identity_api
 
-HOST_URL = ""  # IOTICSpace URL
-
-USER_KEY_NAME = ""
-USER_SEED = ""  # Copy-paste SEED string generated
+HOST_URL = ""
 
 AGENT_KEY_NAME = ""
-AGENT_SEED = ""  # Copy-paste SEED string generated
+AGENT_SEED = ""
 
 
 def main():
@@ -196,6 +195,7 @@ def main():
                 "key": PROPERTY_KEY_CREATED_BY,
                 "stringLiteralValue": {"value": "Lorenzo"},
             },
+            # Add later
             {
                 "key": PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
                 "uriValue": {"value": "Replace with Host ID"},

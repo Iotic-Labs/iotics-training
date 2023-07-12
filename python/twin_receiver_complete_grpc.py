@@ -8,6 +8,8 @@ from helpers.constants import (
     PROPERTY_KEY_TYPE,
     PROPERTY_VALUE_ALLOW_ALL,
     RADIATOR_ONTOLOGY,
+    USER_KEY_NAME,
+    USER_SEED,
 )
 from helpers.identity_auth import Identity
 from helpers.utilities import get_host_endpoints
@@ -20,9 +22,6 @@ from iotics.lib.grpc.helpers import (
 from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 
 HOST_URL = ""  # IOTICSpace URL
-
-USER_KEY_NAME = ""
-USER_SEED = ""  # Copy-paste SEED string generated
 
 AGENT_KEY_NAME = ""
 AGENT_SEED = ""  # Copy-paste SEED string generated
