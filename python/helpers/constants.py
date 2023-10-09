@@ -1,7 +1,6 @@
 from collections import namedtuple
 
 # UTILITIES CONSTANTS
-TOKEN_REFRESH_PERIOD_PERCENT = 0.75
 INDEX_JSON_PATH = "/index.json"
 
 # PROPERTY KEYS
@@ -58,4 +57,7 @@ DELETE_TWIN = RestEndpoint(method="DELETE", url="{host}/qapi/twins/{twin_id}")
 
 # USER CREDENTIALS
 USER_KEY_NAME = ""
-USER_SEED = ""
+USER_SEED = bytes.fromhex("")
+
+# AGENT CREDENTIALS
+AGENT_SEED = bytes.fromhex("")

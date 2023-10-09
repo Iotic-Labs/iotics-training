@@ -9,16 +9,16 @@ from helpers.constants import (
     RADIATOR_ONTOLOGY,
     USER_KEY_NAME,
     USER_SEED,
+    AGENT_SEED,
 )
 from helpers.identity_auth import Identity
 from helpers.utilities import get_host_endpoints
 from iotics.lib.grpc.helpers import create_property
 from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 
-HOST_URL = ""  # IOTICSpace URL
 
-AGENT_KEY_NAME = ""
-AGENT_SEED = ""  # Copy-paste SEED string generated
+HOST_URL = ""  # IOTICSpace URL
+AGENT_KEY_NAME = "TwinSender"
 
 
 def main():
@@ -30,15 +30,20 @@ def main():
     )
 
     ### 2. CREATE AGENT AND USER IDENTITY, THEN DELEGATE
-    identity_api.create_user_and_agent_with_auth_delegation(
-        user_seed=bytes.fromhex(USER_SEED),
+    (
+        user_identity,
+        agent_identity,
+    ) = identity_api.create_user_and_agent_with_auth_delegation(
+        user_seed=USER_SEED,
         user_key_name=USER_KEY_NAME,
-        agent_seed=bytes.fromhex(AGENT_SEED),
+        agent_seed=AGENT_SEED,
         agent_key_name=AGENT_KEY_NAME,
     )
 
     ### 3. GENERATE NEW TOKEN
-    identity_api.refresh_token(duration=600)
+    identity_api.refresh_token(
+        agent_identity=agent_identity, user_did=user_identity.did, duration=600
+    )
 
     ##### TWIN SETUP #####
     ### 4. INSTANTIATE IOTICSviagRPC
@@ -46,7 +51,9 @@ def main():
 
     ### 5. CREATE TWIN SENDER IDENTITY WITH CONTROL DELEGATION
     twin_motion_sensor_identity = identity_api.create_twin_with_control_delegation(
-        twin_key_name="TwinMotionSensor", twin_seed=bytes.fromhex(AGENT_SEED)
+        twin_key_name="TwinMotionSensor",
+        twin_seed=AGENT_SEED,
+        agent_identity=agent_identity,
     )
 
     ### 6. DEFINE TWIN'S STRUCTURE
@@ -69,7 +76,7 @@ def main():
         twin_did=twin_motion_sensor_identity.did, properties=properties
     )
 
-    print(f"Twin {twin_motion_sensor_identity.did} created succesfully")
+    print(f"Twin {twin_motion_sensor_identity.did} created")
 
     ##### TWIN INTERACTION #####
     ### 8. SEARCH FOR TWIN RADIATOR
@@ -109,8 +116,8 @@ def main():
             message = {"turn_on": bool(randint(0, 1))}
 
             iotics_api.send_input_message(
-                sender_twin_id=twin_motion_sensor_identity.did,
-                receiver_twin_id=twin_radiator.twinId.id,
+                sender_twin_did=twin_motion_sensor_identity.did,
+                receiver_twin_did=twin_radiator.twinId.id,
                 remote_host_id=twin_radiator.twinId.hostId,
                 input_id=twin_radiator.inputs[0].inputId.id,
                 message=message,

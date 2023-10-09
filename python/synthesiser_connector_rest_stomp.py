@@ -1,9 +1,8 @@
-import base64
 import json
 import threading
-from datetime import datetime, timedelta, timezone
 
 from helpers.constants import (
+    AGENT_SEED,
     PROPERTY_KEY_COMMENT,
     PROPERTY_KEY_LABEL,
     PROPERTY_KEY_TYPE,
@@ -17,13 +16,18 @@ from helpers.constants import (
     USER_SEED,
 )
 from helpers.stomp_client import StompClient
-from helpers.utilities import get_host_endpoints, make_api_call, search_twins
+from helpers.utilities import (
+    decode_data,
+    encode_data,
+    generate_headers,
+    get_host_endpoints,
+    make_api_call,
+    search_twins,
+)
 from iotics.lib.identity.api.high_level_api import get_rest_high_level_identity_api
 
-HOST_URL = ""
-
-AGENT_KEY_NAME = ""
-AGENT_SEED = ""
+HOST_URL = ""  # IOTICSpace URL
+AGENT_KEY_NAME = "SynthesiserConnector"
 
 
 def main():
@@ -39,9 +43,9 @@ def main():
         user_identity,
         agent_identity,
     ) = identity_api.create_user_and_agent_with_auth_delegation(
-        user_seed=bytes.fromhex(USER_SEED),
+        user_seed=USER_SEED,
         user_key_name=USER_KEY_NAME,
-        agent_seed=bytes.fromhex(AGENT_SEED),
+        agent_seed=AGENT_SEED,
         agent_key_name=AGENT_KEY_NAME,
     )
 
@@ -52,18 +56,13 @@ def main():
         duration=600,
     )
 
-    headers = {
-        "accept": "application/json",
-        "Iotics-ClientAppId": "synthesiser_connector",
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {token}",
-    }
+    headers = generate_headers(token=token)
 
     ##### TWIN SETUP #####
     ### 4. CREATE TWIN SYNTHESISER IDENTITY WITH CONTROL DELEGATION
     twin_thermostat_identity = identity_api.create_twin_with_control_delegation(
         twin_key_name="TwinThermostat",
-        twin_seed=bytes.fromhex(AGENT_SEED),
+        twin_seed=AGENT_SEED,
         agent_registered_identity=agent_identity,
     )
 
@@ -91,19 +90,10 @@ def main():
         payload=upsert_twin_payload,
     )
 
-    print(f"Twin {twin_thermostat_identity.did} created succesfully")
+    print(f"Twin {twin_thermostat_identity.did} created")
 
     ##### TWIN INTERACTION #####
     ### 7. SEARCH FOR TWIN RADIATOR
-    search_headers = headers.copy()
-    search_headers.update(
-        {
-            "Iotics-RequestTimeout": (
-                datetime.now(tz=timezone.utc) + timedelta(seconds=3)
-            ).isoformat()
-        }
-    )
-
     payload = {
         "responseType": "FULL",
         "filter": {
@@ -122,7 +112,7 @@ def main():
     twins_found_list = search_twins(
         method=SEARCH_TWINS.method,
         endpoint=SEARCH_TWINS.url.format(host=HOST_URL),
-        headers=search_headers,
+        headers=headers,
         payload=payload,
         scope="LOCAL",
     )
@@ -132,15 +122,6 @@ def main():
     twin_radiator = twins_found_list[0]
 
     ### 8. SEARCH FOR TWIN TEMPERATURE SENSOR
-    search_headers = headers.copy()
-    search_headers.update(
-        {
-            "Iotics-RequestTimeout": (
-                datetime.now(tz=timezone.utc) + timedelta(seconds=3)
-            ).isoformat()
-        }
-    )
-
     payload = {
         "responseType": "FULL",
         "filter": {
@@ -159,7 +140,7 @@ def main():
     twins_found_list = search_twins(
         method=SEARCH_TWINS.method,
         endpoint=SEARCH_TWINS.url.format(host=HOST_URL),
-        headers=search_headers,
+        headers=headers,
         payload=payload,
         scope="GLOBAL",
     )
@@ -183,7 +164,7 @@ def main():
         except KeyError:
             print("A KeyError occurred in the receiver_callback")
         else:
-            decoded_feed_data = json.loads(base64.b64decode(data).decode("ascii"))
+            decoded_feed_data = decode_data(data=data)
             thermostat_logic(
                 temperature=decoded_feed_data["sensor_reading"],
                 twin_publisher_id=twin_publisher_id,
@@ -213,7 +194,7 @@ def main():
         event = threading.Event()
         events_dict.update({twin_publisher_id: event})
 
-    ### 9. SEND INPUT MESSAGES
+    ### 10. SEND INPUT MESSAGES
     previous_message_sent = {"turn_on": True}
     while True:
         try:
@@ -223,7 +204,7 @@ def main():
                 message = {"turn_on": False}
 
             if message != previous_message_sent:
-                encoded_data = base64.b64encode(json.dumps(message).encode()).decode()
+                encoded_data = encode_data(data=message)
                 payload = {
                     "message": {"data": encoded_data, "mime": "application/json"}
                 }

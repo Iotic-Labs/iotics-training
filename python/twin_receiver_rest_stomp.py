@@ -1,4 +1,3 @@
-import base64
 import json
 from time import sleep
 
@@ -14,15 +13,14 @@ from helpers.constants import (
     UPSERT_TWIN,
     USER_KEY_NAME,
     USER_SEED,
+    AGENT_SEED,
 )
 from helpers.stomp_client import StompClient
-from helpers.utilities import get_host_endpoints, make_api_call
+from helpers.utilities import get_host_endpoints, make_api_call, decode_data, generate_headers
 from iotics.lib.identity.api.high_level_api import get_rest_high_level_identity_api
 
-HOST_URL = ""
-
-AGENT_KEY_NAME = ""
-AGENT_SEED = ""
+HOST_URL = ""  # IOTICSpace URL
+AGENT_KEY_NAME = "TwinReceiver"
 
 
 def main():
@@ -43,9 +41,9 @@ def main():
         user_identity,
         agent_identity,
     ) = identity_api.create_user_and_agent_with_auth_delegation(
-        user_seed=bytes.fromhex(USER_SEED),
+        user_seed=USER_SEED,
         user_key_name=USER_KEY_NAME,
-        agent_seed=bytes.fromhex(AGENT_SEED),
+        agent_seed=AGENT_SEED,
         agent_key_name=AGENT_KEY_NAME,
     )
 
@@ -63,13 +61,8 @@ def main():
         user_did=user_identity.did,
         duration=600,
     )
-
-    headers = {
-        "accept": "application/json",
-        "Iotics-ClientAppId": "twin_radiator",  # Namespace used to group all the requests/responses
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {token}",  # This is where the token will be used
-    }
+    
+    headers = generate_headers(token=token)
 
     ##### TWIN SETUP #####
     ### 4. CREATE TWIN RADIATOR IDENTITY WITH CONTROL DELEGATION
@@ -81,7 +74,8 @@ def main():
         # The Twin Key Name's concept is the same as Agent and User Key Name
         twin_key_name="TwinRadiator",
         # It is a best-practice to re-use the "AGENT_SEED" as a Twin seed.
-        twin_seed=bytes.fromhex(AGENT_SEED),
+        twin_seed=AGENT_SEED,
+        # The Agent Identity we want to delegate control to
         agent_registered_identity=agent_identity,
     )
 
@@ -146,7 +140,7 @@ def main():
         payload=upsert_twin_payload,
     )
 
-    print(f"Twin {twin_radiator_identity.did} created succesfully")
+    print(f"Twin {twin_radiator_identity.did} created")
 
     ##### TWIN INTERACTION #####
     ### 7. WAIT FOR INPUT MESSAGES
@@ -162,7 +156,7 @@ def main():
         except KeyError:
             print("A KeyError occurred in the receiver_callback")
         else:
-            decoded_feed_data = json.loads(base64.b64decode(data).decode("ascii"))
+            decoded_feed_data = decode_data(data)
             print(decoded_feed_data)
 
     stomp_client = StompClient(

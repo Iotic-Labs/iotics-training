@@ -2,6 +2,7 @@ from random import randint
 from time import sleep
 
 from helpers.constants import (
+    AGENT_SEED,
     PROPERTY_KEY_COLOUR,
     PROPERTY_KEY_COMMENT,
     PROPERTY_KEY_CREATED_BY,
@@ -16,6 +17,8 @@ from helpers.constants import (
     SAREF_TEMPERATURE_SENSOR_HAS_MODEL_ONTOLOGY,
     SAREF_TEMPERATURE_SENSOR_ONTOLOGY,
     UNIT_DEGREE_CELSIUS,
+    USER_KEY_NAME,
+    USER_SEED,
 )
 from helpers.identity_auth import Identity
 from helpers.utilities import get_host_endpoints
@@ -23,12 +26,7 @@ from iotics.lib.grpc.helpers import create_feed_with_meta, create_property, crea
 from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 
 HOST_URL = ""  # IOTICSpace URL
-
-USER_KEY_NAME = ""
-USER_SEED = ""  # Copy-paste SEED string generated
-
-AGENT_KEY_NAME = ""
-AGENT_SEED = ""  # Copy-paste SEED string generated
+AGENT_KEY_NAME = "PublisherConnector"
 
 
 def main():
@@ -40,15 +38,20 @@ def main():
     )
 
     ### 2. CREATE AGENT AND USER IDENTITY, THEN DELEGATE
-    identity_api.create_user_and_agent_with_auth_delegation(
-        user_seed=bytes.fromhex(USER_SEED),
+    (
+        user_identity,
+        agent_identity,
+    ) = identity_api.create_user_and_agent_with_auth_delegation(
+        user_seed=USER_SEED,
         user_key_name=USER_KEY_NAME,
-        agent_seed=bytes.fromhex(AGENT_SEED),
+        agent_seed=AGENT_SEED,
         agent_key_name=AGENT_KEY_NAME,
     )
 
     ### 3. GENERATE NEW TOKEN
-    identity_api.refresh_token(duration=600)
+    identity_api.refresh_token(
+        agent_identity=agent_identity, user_did=user_identity.did, duration=600
+    )
 
     ##### TWIN SETUP #####
     ### 4. INSTANTIATE IOTICSviagRPC
@@ -56,7 +59,9 @@ def main():
 
     ### 5. CREATE TWIN TEMPERATURE MODEL IDENTITY WITH CONTROL DELEGATION
     twin_temperature_model_identity = identity_api.create_twin_with_control_delegation(
-        twin_key_name="TwinTemperatureModel", twin_seed=bytes.fromhex(AGENT_SEED)
+        twin_key_name="TwinTemperatureModel",
+        twin_seed=AGENT_SEED,
+        agent_identity=agent_identity,
     )
 
     ### 6. DEFINE TWIN MODEL'S STRUCTURE
@@ -112,14 +117,15 @@ def main():
         feeds=feeds,
     )
 
-    print(f"Twin Model {twin_temperature_model_identity.did} created succesfully")
+    print(f"Twin Model {twin_temperature_model_identity.did} created")
 
     ### 7.  CREATE DIGITAL TWINS FROM MODEL
     twin_from_model_id_list = []
     for temp_sensor in range(2):
         twin_temperature_identity = identity_api.create_twin_with_control_delegation(
             twin_key_name=f"TwinTemperature{temp_sensor}",
-            twin_seed=bytes.fromhex(AGENT_SEED),
+            twin_seed=AGENT_SEED,
+            agent_identity=agent_identity,
         )
 
         properties_twin_from_model = [
@@ -139,7 +145,7 @@ def main():
                 language="en",
             ),
             create_property(
-                key=PROPERTY_KEY_DEFINES,
+                key=PROPERTY_KEY_TYPE,
                 value=SAREF_TEMPERATURE_SENSOR_ONTOLOGY,
                 is_uri=True,
             ),
@@ -149,14 +155,15 @@ def main():
             create_property(key=PROPERTY_KEY_SPACE_NAME, value="Space A"),
             create_property(key=PROPERTY_KEY_COLOUR, value="#9aceff"),
             create_property(key=PROPERTY_KEY_CREATED_BY, value="Lorenzo"),
-            create_property(
-                key=PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
-                value="Replace with Host ID",
-            ),
-            create_property(
-                key=PROPERTY_KEY_HOST_ALLOW_LIST,
-                value="Replace with Host ID",
-            ),
+            # Add later
+            # create_property(
+            #     key=PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
+            #     value="Replace with Host ID",
+            # ),
+            # create_property(
+            #     key=PROPERTY_KEY_HOST_ALLOW_LIST,
+            #     value="Replace with Host ID",
+            # ),
         ]
 
         iotics_api.upsert_twin(
@@ -165,7 +172,7 @@ def main():
             feeds=feeds,
         )
 
-        print(f"Twin {twin_temperature_model_identity.did} created succesfully")
+        print(f"Twin {twin_temperature_identity.did} created")
 
         twin_from_model_id_list.append(twin_temperature_identity.did)
 

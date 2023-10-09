@@ -1,10 +1,8 @@
-import base64
-import json
-from datetime import datetime, timedelta, timezone
 from random import randint
 from time import sleep
 
 from helpers.constants import (
+    AGENT_SEED,
     MOTION_SENSOR_ONTOLOGY,
     PROPERTY_KEY_COMMENT,
     PROPERTY_KEY_LABEL,
@@ -16,13 +14,17 @@ from helpers.constants import (
     USER_KEY_NAME,
     USER_SEED,
 )
-from helpers.utilities import get_host_endpoints, make_api_call, search_twins
+from helpers.utilities import (
+    encode_data,
+    generate_headers,
+    get_host_endpoints,
+    make_api_call,
+    search_twins,
+)
 from iotics.lib.identity.api.high_level_api import get_rest_high_level_identity_api
 
-HOST_URL = ""
-
-AGENT_KEY_NAME = ""
-AGENT_SEED = ""
+HOST_URL = ""  # IOTICSpace URL
+AGENT_KEY_NAME = "TwinSender"
 
 
 def main():
@@ -38,9 +40,9 @@ def main():
         user_identity,
         agent_identity,
     ) = identity_api.create_user_and_agent_with_auth_delegation(
-        user_seed=bytes.fromhex(USER_SEED),
+        user_seed=USER_SEED,
         user_key_name=USER_KEY_NAME,
-        agent_seed=bytes.fromhex(AGENT_SEED),
+        agent_seed=AGENT_SEED,
         agent_key_name=AGENT_KEY_NAME,
     )
 
@@ -51,18 +53,13 @@ def main():
         duration=600,
     )
 
-    headers = {
-        "accept": "application/json",
-        "Iotics-ClientAppId": "twin_sender",  # Namespace used to group all the requests/responses
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {token}",  # This is where the token will be used
-    }
+    headers = generate_headers(token=token)
 
     ##### TWIN SETUP #####
     ### 4. CREATE TWIN IDENTITY WITH CONTROL DELEGATION
     twin_motion_sensor_identity = identity_api.create_twin_with_control_delegation(
         twin_key_name="TwinMotionSensor",
-        twin_seed=bytes.fromhex(AGENT_SEED),
+        twin_seed=AGENT_SEED,
         agent_registered_identity=agent_identity,
     )
 
@@ -91,21 +88,12 @@ def main():
         payload=upsert_twin_payload,
     )
 
-    print(f"Twin {twin_motion_sensor_identity.did} created succesfully")
+    print(f"Twin {twin_motion_sensor_identity.did} created")
 
     ##### TWIN INTERACTION #####
     ### 7. SEARCH FOR TWIN RADIATOR
     """We need to Search in the entire Network of Spaces (scope=GLOBAL)
     rather than locally (scope=LOCAL) in order to find Twins in a remote Host."""
-    search_headers = headers.copy()
-    search_headers.update(
-        {
-            "Iotics-RequestTimeout": (
-                datetime.now(tz=timezone.utc) + timedelta(seconds=3)
-            ).isoformat()
-        }
-    )
-
     payload = {
         "responseType": "FULL",
         "filter": {
@@ -124,12 +112,12 @@ def main():
     twins_found_list = search_twins(
         method=SEARCH_TWINS.method,
         endpoint=SEARCH_TWINS.url.format(host=HOST_URL),
-        headers=search_headers,
+        headers=headers,
         payload=payload,
         scope="GLOBAL",
     )
 
-    print(twins_found_list)
+    # print(twins_found_list)
 
     """The search result will return an empty list of Twins found.
     In fact the Twin we want to search is not 'findable' from other Hosts
@@ -150,7 +138,7 @@ def main():
     while True:
         try:
             message = {"turn_on": bool(randint(0, 1))}
-            encoded_data = base64.b64encode(json.dumps(message).encode()).decode()
+            encoded_data = encode_data(message)
             payload = {"message": {"data": encoded_data, "mime": "application/json"}}
 
             make_api_call(
