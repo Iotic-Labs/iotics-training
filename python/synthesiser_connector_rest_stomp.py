@@ -56,7 +56,7 @@ def main():
         duration=600,
     )
 
-    headers = generate_headers(app_id="synthesiser_connector", token=token)
+    headers = generate_headers(token=token)
 
     ##### TWIN SETUP #####
     ##### TWIN INTERACTION #####

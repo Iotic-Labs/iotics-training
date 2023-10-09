@@ -4,6 +4,7 @@ import logging
 import sys
 from typing import List, Optional
 from datetime import datetime, timedelta, timezone
+import uuid
 
 import requests
 from helpers.constants import INDEX_JSON_PATH
@@ -55,22 +56,23 @@ def search_twins(
 ) -> List[dict]:
     # The following variable will be used to append any Twins found by the Search operation
     twins_found_list = []
-    
-    headers.update(
+
+    search_headers = headers.copy()
+    search_headers.update(
         {
             "Iotics-RequestTimeout": (
                 datetime.now(tz=timezone.utc) + timedelta(seconds=3)
             ).isoformat()
         }
     )
-    
+
     # We can now use the Search operation over REST by specifying the 'scope' parameter.
     # The latter defines where to search for Twins, either locally ('LOCAL') in the Space defined by the 'HOST_URL'
     # or globally ('GLOBAL') in the Network.
     with requests.request(
         method=method,
         url=endpoint,
-        headers=headers,
+        headers=search_headers,
         stream=True,
         verify=True,
         params={"scope": scope},
@@ -105,10 +107,10 @@ def encode_data(data: dict):
     return encoded_data
 
 
-def generate_headers(app_id: str, token: str) -> dict:
+def generate_headers(token: str) -> dict:
     headers = {
         "accept": "application/json",
-        "Iotics-ClientAppId": app_id,  # Namespace used to group all the requests/responses
+        "Iotics-ClientAppId": uuid.uuid4().hex,  # Namespace used to group all the requests/responses
         "Content-Type": "application/json",
         "Authorization": f"Bearer {token}",  # This is where the token will be used
     }
