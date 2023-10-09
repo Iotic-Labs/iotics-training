@@ -1,4 +1,5 @@
-import json
+from random import randint
+from time import sleep
 
 from helpers.constants import (
     PROPERTY_KEY_COMMENT,
@@ -7,14 +8,16 @@ from helpers.constants import (
     PROPERTY_KEY_LABEL,
     PROPERTY_KEY_TYPE,
     PROPERTY_VALUE_ALLOW_ALL,
-    RADIATOR_ONTOLOGY,
+    SAREF_TEMPERATURE_SENSOR_ONTOLOGY,
+    UNIT_DEGREE_CELSIUS,
     USER_KEY_NAME,
     USER_SEED,
+    AGENT_SEED,
 )
 from helpers.identity_auth import Identity
 from helpers.utilities import get_host_endpoints
 from iotics.lib.grpc.helpers import (
-    create_input_with_meta,
+    create_feed_with_meta,
     create_location,
     create_property,
     create_value,
@@ -22,9 +25,7 @@ from iotics.lib.grpc.helpers import (
 from iotics.lib.grpc.iotics_api import IoticsApi as IOTICSviagRPC
 
 HOST_URL = ""  # IOTICSpace URL
-
-AGENT_KEY_NAME = ""
-AGENT_SEED = ""  # Copy-paste SEED string generated
+AGENT_KEY_NAME = "TwinPublisher"
 
 
 def main():
@@ -41,10 +42,13 @@ def main():
     2. Generate a Token to use the IOTICS API.
     Be aware that, if Key Name and Seed don't change, multiple calls of the following function
     will not create new Identities, it will retrieve the existing ones."""
-    identity_api.create_user_and_agent_with_auth_delegation(
-        user_seed=bytes.fromhex(USER_SEED),
+    (
+        user_identity,
+        agent_identity,
+    ) = identity_api.create_user_and_agent_with_auth_delegation(
+        user_seed=USER_SEED,
         user_key_name=USER_KEY_NAME,
-        agent_seed=bytes.fromhex(AGENT_SEED),
+        agent_seed=AGENT_SEED,
         agent_key_name=AGENT_KEY_NAME,
     )
 
@@ -53,33 +57,39 @@ def main():
     that lasts for quite a good amount of time. If someone steals this token
     they will be able to perform any operation against any Twin
     created with your Agent (Control Delegation)."""
-    identity_api.refresh_token(duration=600)
+    identity_api.refresh_token(
+        agent_identity=agent_identity, user_did=user_identity.did, duration=600
+    )
 
     ##### TWIN SETUP #####
     ### 4. INSTANTIATE IOTICSviagRPC
     iotics_api = IOTICSviagRPC(auth=identity_api)
 
-    ### 5. CREATE TWIN RADIATOR IDENTITY WITH CONTROL DELEGATION
-    """ We now need to create a new Twin Identity which will be used for our Twin Radiator.
+    ### 5. CREATE TWIN PUBLISHER IDENTITY WITH CONTROL DELEGATION
+    """ We now need to create a new Twin Identity which will be used for our Twin Publisher.
     Only Agents can perform actions against a Twin.
     This means, after creating the Twin Identity it has to "control-delegate" an Agent Identity
     so the latter can control the Digital Twin."""
-    twin_radiator_identity = identity_api.create_twin_with_control_delegation(
+    twin_temperature_identity = identity_api.create_twin_with_control_delegation(
         # The Twin Key Name's concept is the same as Agent and User Key Name
-        twin_key_name="TwinRadiator",
+        twin_key_name="TwinTemperature",
         # It is a best-practice to re-use the "AGENT_SEED" as a Twin seed.
-        twin_seed=bytes.fromhex(AGENT_SEED),
+        twin_seed=AGENT_SEED,
+        # The Agent Identity we want to delegate control to
+        agent_identity=agent_identity,
     )
 
     ### 6. DEFINE TWIN'S STRUCTURE
     properties = [
         create_property(
-            key=PROPERTY_KEY_LABEL, value="Twin Radiator - LP", language="en"
+            key=PROPERTY_KEY_LABEL, value="Twin Publisher - LP", language="en"
         ),
         create_property(
-            key=PROPERTY_KEY_COMMENT, value="This is a Twin Radiator", language="en"
+            key=PROPERTY_KEY_COMMENT, value="This is a Twin Publisher", language="en"
         ),
-        create_property(key=PROPERTY_KEY_TYPE, value=RADIATOR_ONTOLOGY, is_uri=True),
+        create_property(
+            key=PROPERTY_KEY_TYPE, value=SAREF_TEMPERATURE_SENSOR_ONTOLOGY, is_uri=True
+        ),
         ### Add the following 2 Properties later ###
         create_property(
             key=PROPERTY_KEY_HOST_METADATA_ALLOW_LIST,
@@ -93,54 +103,63 @@ def main():
         ),
     ]
 
-    input_id = "radiator_switch"
-    input_label = "turn_on"
-    inputs = [
-        create_input_with_meta(
-            input_id=input_id,
+    feed_id = "temperature"
+    feed_value_label = "sensor_reading"
+    feeds = [
+        create_feed_with_meta(
+            feed_id=feed_id,
             properties=[
                 create_property(
-                    key=PROPERTY_KEY_LABEL, value="ON/OFF switch", language="en"
+                    key=PROPERTY_KEY_LABEL, value="Temperature", language="en"
+                ),
+                create_property(
+                    key=PROPERTY_KEY_COMMENT,
+                    value="Temperature detected",
+                    language="en",
                 ),
             ],
             values=[
                 create_value(
-                    label=input_label,
-                    comment="ON/OFF switch for the Radiator",
-                    data_type="boolean",
+                    label=feed_value_label,
+                    comment="Temperature in degrees Celsius",
+                    data_type="integer",
+                    unit=UNIT_DEGREE_CELSIUS,
                 )
             ],
         )
     ]
 
-    ### 7. CREATE DIGITAL TWIN RADIATOR
+    ### 7. CREATE DIGITAL TWIN
     """We can now use the Upsert Twin operation in order to:
     1. Create the Digital Twin;
     2. Add Twin's Metadata;
-    3. Add a Input object (Input's Metadata + Input's Value) to this Twin."""
+    3. Add a Feed object (Feed's Metadata + Feed's Value) to this Twin."""
     iotics_api.upsert_twin(
-        twin_did=twin_radiator_identity.did,
+        twin_did=twin_temperature_identity.did,
         location=create_location(lat=51.5, lon=-0.1),
         properties=properties,
-        inputs=inputs,
+        feeds=feeds,
     )
 
-    print(f"Twin {twin_radiator_identity.did} created succesfully")
+    print(f"Twin DID {twin_temperature_identity.did} created")
 
     ##### TWIN INTERACTION #####
-    ### 8. WAIT FOR INPUT MESSAGES
-    input_listener = iotics_api.receive_input_messages(
-        twin_id=twin_radiator_identity.did, input_id=input_id
-    )
+    ### 8. SHARE TEMPERATURE DATA
+    while True:
+        try:
+            data_to_share = {feed_value_label: randint(1, 30)}
+            iotics_api.share_feed_data(
+                twin_did=twin_temperature_identity.did,
+                feed_id=feed_id,
+                data=data_to_share,
+            )
 
-    print("Waiting for Input messages...")
-
-    try:
-        for message in input_listener:
-            input_msg_received = json.loads(message.payload.message.data)
-            print(input_msg_received)
-    except KeyboardInterrupt:
-        pass
+            print(
+                f"Shared {data_to_share} from Twin ID {twin_temperature_identity.did}"
+            )
+            sleep(2)
+        except KeyboardInterrupt:
+            break
 
 
 if __name__ == "__main__":

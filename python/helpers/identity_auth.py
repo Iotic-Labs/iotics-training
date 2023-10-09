@@ -1,7 +1,3 @@
-import logging
-from datetime import datetime, timedelta
-from typing import Optional
-
 from iotics.lib.grpc.auth import AuthInterface
 from iotics.lib.identity.api.high_level_api import (
     HighLevelIdentityApi,
@@ -16,8 +12,6 @@ class Identity(AuthInterface):
             resolver_url=resolver_url
         )
         self._grpc_endpoint: str = grpc_endpoint
-        self._user_identity: RegisteredIdentity = None
-        self._agent_identity: RegisteredIdentity = None
         self._token: str = None
 
     def get_host(self) -> str:
@@ -26,16 +20,13 @@ class Identity(AuthInterface):
     def get_token(self) -> str:
         return self._token
 
-    def refresh_token(self, duration: int = 60):
+    def refresh_token(
+        self, agent_identity: RegisteredIdentity, user_did: str, duration: int
+    ):
         self._token: str = self._identity_api.create_agent_auth_token(
-            agent_registered_identity=self._agent_identity,
-            user_did=self._user_identity.did,
+            agent_registered_identity=agent_identity,
+            user_did=user_did,
             duration=duration,
-        )
-
-        logging.debug(
-            "New token generated. Expires at %s",
-            datetime.now() + timedelta(seconds=duration),
         )
 
     def create_user_and_agent_with_auth_delegation(
@@ -44,10 +35,10 @@ class Identity(AuthInterface):
         user_key_name: str,
         agent_seed: bytes,
         agent_key_name: str,
-    ):
+    ) -> (RegisteredIdentity, RegisteredIdentity):
         (
-            self._user_identity,
-            self._agent_identity,
+            user_identity,
+            agent_identity,
         ) = self._identity_api.create_user_and_agent_with_auth_delegation(
             user_seed=user_seed,
             user_key_name=user_key_name,
@@ -55,19 +46,17 @@ class Identity(AuthInterface):
             agent_key_name=agent_key_name,
         )
 
+        return user_identity, agent_identity
+
     def create_twin_with_control_delegation(
-        self, twin_key_name: str, twin_seed: bytes
+        self, twin_key_name: str, twin_seed: bytes, agent_identity: RegisteredIdentity
     ) -> RegisteredIdentity:
         twin_identity: RegisteredIdentity = (
             self._identity_api.create_twin_with_control_delegation(
                 twin_seed=twin_seed,
                 twin_key_name=twin_key_name,
-                agent_registered_identity=self._agent_identity,
+                agent_registered_identity=agent_identity,
             )
-        )
-
-        logging.debug(
-            "Twin Identity %s created with Control delegation", twin_identity.did
         )
 
         return twin_identity
